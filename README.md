@@ -6,8 +6,35 @@ Configuration templates and starter files for AI coding agents.
 
 | Tool | Description |
 |------|-------------|
+| [Claude Code](claude-code/) | Anthropic's official CLI — workflow, permissions, and memory configuration |
 | [Codex CLI](codex/) | OpenAI's terminal coding agent — optimized for Claude Code-like reasoning |
 | [OpenCode](opencode/) | Provider-agnostic terminal agent — optimized for Azure AI Foundry / AVD |
+
+---
+
+## Claude Code
+
+Templates for [Claude Code](https://github.com/anthropics/claude-code) — Anthropic's official CLI.
+
+| File | Purpose | Install location |
+|------|---------|-----------------|
+| [`claude-code/CLAUDE.md`](claude-code/CLAUDE.md) | Global instructions | `~/.claude/CLAUDE.md` |
+| [`claude-code/settings.json`](claude-code/settings.json) | Broad permissions (no prompts) | `~/.claude/settings.json` |
+| [`claude-code/GUIDE.md`](claude-code/GUIDE.md) | Reference — permissions, memory, hooks, image limits | — |
+
+### Quick install
+
+```bash
+mkdir -p ~/.claude
+curl -o ~/.claude/CLAUDE.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/claude-code/CLAUDE.md
+curl -o ~/.claude/settings.json https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/claude-code/settings.json
+```
+
+### Highlights
+
+- Minimal CLAUDE.md — Claude reasons well natively, so coaching focuses on workflow and code quality rather than compensating for reasoning deficiencies
+- Broad `settings.json` permissions — no approval prompts for standard operations
+- Guide covers: permission patterns, memory system, hooks, image context limits (critical gotcha)
 
 ---
 
