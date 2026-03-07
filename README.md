@@ -2,31 +2,24 @@
 
 Configuration templates and starter files for AI coding agents.
 
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| [Codex CLI](codex/) | OpenAI's terminal coding agent — optimized for Claude Code-like reasoning |
+| [OpenCode](opencode/) | Provider-agnostic terminal agent — optimized for Azure AI Foundry / AVD |
+
+---
+
 ## Codex CLI
 
-Templates for [OpenAI Codex CLI](https://github.com/openai/codex) — optimized for Claude Code-like reasoning, maximum local context, and minimal outbound data.
+Templates for [OpenAI Codex CLI](https://github.com/openai/codex).
 
-| File | Purpose | Install |
-|------|---------|---------|
+| File | Purpose | Install location |
+|------|---------|-----------------|
 | [`codex/config.toml`](codex/config.toml) | Global config | `~/.codex/config.toml` |
 | [`codex/AGENTS.md`](codex/AGENTS.md) | Global coaching instructions | `~/.codex/AGENTS.md` |
-
-### What these do
-
-**config.toml**
-- `model_reasoning_effort = "xhigh"` — pushes GPT to explore alternatives and self-review before answering
-- `tool_output_token_limit = 32000` — lets it read large files and command output without truncation
-- `child_agents_md = true` — sub-agents inherit your coaching instructions (off by default)
-- `memories = true` — cross-session memory that persists across restarts
-- `undo = true` — git snapshot before each change, enabling per-step rollback
-- Analytics, feedback, and update checks disabled
-- Full local history saved
-
-**AGENTS.md**
-- Coaching for step-by-step reasoning and exploring alternatives before acting
-- Explore-then-implement workflow (read before changing)
-- Strict git safety rules (learned the hard way — GPT will literally force-push `.gitignore`d files if you ask it to "commit everything")
-- Direct communication style with minimal unnecessary check-ins
+| [`codex/GUIDE.md`](codex/GUIDE.md) | Reference — what each setting does and why | — |
 
 ### Quick install
 
@@ -36,9 +29,60 @@ curl -o ~/.codex/config.toml https://raw.githubusercontent.com/jblenman/ai-agent
 curl -o ~/.codex/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/codex/AGENTS.md
 ```
 
-### Reusing Claude Code instructions
+### Highlights
 
-If you already use Claude Code, you can share instructions across both tools. Add to `config.toml`:
+- `model_reasoning_effort = "xhigh"` — pushes GPT to explore alternatives and self-review before answering
+- `tool_output_token_limit = 32000` — reads large files without truncation
+- `child_agents_md = true` — sub-agents inherit your coaching (off by default)
+- `memories = true` — cross-session memory across restarts
+- `undo = true` — git snapshot before each change, per-step rollback
+- Analytics, feedback, and update checks disabled
+- Full local history saved
+
+---
+
+## OpenCode
+
+Templates for [OpenCode](https://github.com/sst/opencode) — specifically for Azure AI Foundry / AVD deployments.
+
+| File | Purpose | Install location |
+|------|---------|-----------------|
+| [`opencode/opencode.json`](opencode/opencode.json) | Provider and model config | `~/.config/opencode/opencode.json` |
+| [`opencode/AGENTS.md`](opencode/AGENTS.md) | Global coaching instructions | `~/.config/opencode/AGENTS.md` |
+| [`opencode/GUIDE.md`](opencode/GUIDE.md) | Reference — what each setting does and why | — |
+
+### Quick install
+
+```bash
+mkdir -p ~/.config/opencode
+curl -o ~/.config/opencode/opencode.json https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/opencode/opencode.json
+curl -o ~/.config/opencode/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/opencode/AGENTS.md
+# Edit opencode.json — replace YOUR_RESOURCE_NAME with your Azure resource name
+```
+
+Set required env vars to block unnecessary outbound calls (Windows):
+
+```powershell
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_SHARE", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_MODELS_FETCH", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_AUTOUPDATE", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_LSP_DOWNLOAD", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_EXTERNAL_SKILLS", "true", "User")
+```
+
+### Highlights
+
+- Uses `@ai-sdk/azure` (not `openai-compatible`) — avoids the Azure URL path bug
+- `gpt-5.2` as primary, `gpt-5-mini` as fast fallback
+- Coaching for step-by-step reasoning and exploring alternatives
+- Strict git safety rules
+- Session management strategy for OpenCode's context truncation problem
+
+---
+
+## Sharing instructions across tools
+
+If you use both Codex CLI and Claude Code on the same projects, you can share a single instruction file. Add to `~/.codex/config.toml`:
 
 ```toml
 project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
@@ -46,26 +90,28 @@ project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
 
 Codex will pick up `.claude/CLAUDE.md` when no `AGENTS.md` exists in a project.
 
-### Per-project AGENTS.md
+---
 
-Add a project-level `AGENTS.md` or `.claude/CLAUDE.md` at the repo root with project-specific context:
+## Per-project setup
+
+Add a project-level instruction file at the repo root for project-specific context:
+
+- Codex: `AGENTS.md` or `.claude/CLAUDE.md`
+- OpenCode: `AGENTS.md`
+- Claude Code: `.claude/CLAUDE.md`
 
 ```markdown
 ## Project Context
-Brief description of what this project does.
+[What this project is and does]
 
 ## Tech Stack
-Languages, frameworks, key dependencies.
+[Languages, frameworks, key dependencies]
 
 ## Coding Conventions
-Style rules, naming conventions, patterns to follow or avoid.
+[Style rules, naming conventions, patterns to follow or avoid]
 
 ## Commands
 - Build: `...`
 - Test: `...`
 - Lint: `...`
 ```
-
----
-
-More templates coming as things get tested and validated.
