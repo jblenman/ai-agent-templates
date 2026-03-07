@@ -10,6 +10,8 @@
 # Uncomment and set your model. Can be overridden per-project in .codex/config.toml
 # model = "gpt-5.2"
 
+suppress_unstable_features_warning = true
+
 model_reasoning_effort = "xhigh"       # none/minimal/low/medium/high/xhigh
 model_reasoning_summary = "detailed"   # show reasoning steps in output (auto/concise/detailed/none)
 model_verbosity = "high"               # low/medium/high
@@ -60,8 +62,6 @@ max_raw_memories_for_consolidation = 512
 no_memories_if_mcp_or_web_search = false
 
 # ── Features ──────────────────────────────────────────────────────────────────
-suppress_unstable_features_warning = true
-
 [features]
 undo = true                # git snapshot at each turn — enables per-step undo
 multi_agent = true         # spawn parallel sub-agents for larger tasks
