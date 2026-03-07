@@ -1,0 +1,103 @@
+# Codex CLI — Recommended config.toml
+# https://github.com/jblenman/ai-agent-templates
+#
+# Goal: Claude Code-like reasoning and autonomy, maximum local context/history/memory,
+# minimal outbound noise. Drop this in ~/.codex/config.toml and adjust to taste.
+#
+# Docs: https://developers.openai.com/codex/config-reference/
+
+# ── Model & Reasoning ─────────────────────────────────────────────────────────
+# Uncomment and set your model. Can be overridden per-project in .codex/config.toml
+# model = "gpt-5.2"
+
+model_reasoning_effort = "xhigh"       # none/minimal/low/medium/high/xhigh
+model_reasoning_summary = "detailed"   # show reasoning steps in output (auto/concise/detailed/none)
+model_verbosity = "high"               # low/medium/high
+personality = "pragmatic"              # none/friendly/pragmatic — direct, no fluff
+
+plan_mode_reasoning_effort = "high"    # reasoning level during plan/explore phase
+review_model = "gpt-5-mini"            # cheaper model for the /review command
+
+# ── Context — give it as much as possible ─────────────────────────────────────
+tool_output_token_limit = 32000        # more tool output kept in context (default is much lower)
+project_doc_max_bytes = 65536          # read up to 64KB of AGENTS.md
+
+# Reuse .claude/CLAUDE.md if no AGENTS.md exists — avoids duplicating instructions
+# across Claude Code and Codex CLI projects
+project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
+
+# ── Approval & Sandbox ────────────────────────────────────────────────────────
+# "on-request" = model decides when to ask; much less friction than the default
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"       # write freely within project, read anywhere
+
+# For fully trusted sessions use: codex --full-auto
+# To bypass everything for a session: codex --yolo
+
+# ── Outbound Privacy ──────────────────────────────────────────────────────────
+check_for_update_on_startup = false
+web_search = "cached"                  # routes through OpenAI API, not direct to search engines
+
+[analytics]
+enabled = false
+
+[feedback]
+enabled = false
+
+# ── Local History — keep everything ───────────────────────────────────────────
+[history]
+persistence = "save-all"
+max_bytes = 209715200                  # 200MB
+
+# ── Cross-session Memory ──────────────────────────────────────────────────────
+[memories]
+generate_memories = true
+use_memories = true
+max_rollout_age_days = 90
+max_unused_days = 60
+min_rollout_idle_hours = 6
+max_raw_memories_for_consolidation = 512
+no_memories_if_mcp_or_web_search = false
+
+# ── Features ──────────────────────────────────────────────────────────────────
+suppress_unstable_features_warning = true
+
+[features]
+undo = true                # git snapshot at each turn — enables per-step undo
+multi_agent = true         # spawn parallel sub-agents for larger tasks
+child_agents_md = true     # sub-agents inherit AGENTS.md coaching (critical — off by default)
+memories = true            # enable cross-session memory subsystem above
+prevent_idle_sleep = true  # keep system awake during long tasks
+js_repl = true             # persistent Node-backed JS REPL
+request_permissions = true # model can request more FS permissions without leaving sandbox
+codex_git_commit = true    # git commit attribution guidance
+personality = true         # required to enable the personality setting above
+
+# ── Shell Environment ─────────────────────────────────────────────────────────
+[shell_environment_policy]
+inherit = "all"            # pass full environment to shell processes
+                           # use "core" or "none" in security-sensitive environments
+
+# ── TUI ───────────────────────────────────────────────────────────────────────
+[tui]
+animations = false
+show_tooltips = false
+status_line = [
+  "model-with-reasoning",  # model name + reasoning effort level
+  "context-remaining",     # % of context window remaining
+  "git-branch",            # current git branch
+  "used-tokens",           # tokens used this session
+]
+
+# ── Profiles — quick switching with: codex --profile <name> ───────────────────
+[profiles.fast]
+# Low-friction mode for quick tasks
+model_reasoning_effort = "medium"
+approval_policy = "never"
+# model = "gpt-5-mini"
+
+[profiles.deep]
+# Maximum reasoning for hard problems
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "detailed"
+plan_mode_reasoning_effort = "high"
