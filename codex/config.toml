@@ -38,7 +38,11 @@ sandbox_mode = "workspace-write"       # write freely within project, read anywh
 
 # ── Outbound Privacy ──────────────────────────────────────────────────────────
 check_for_update_on_startup = false
-web_search = "cached"                  # routes through OpenAI API, not direct to search engines
+
+# web_search mode controls fetch behavior; features.web_search controls whether
+# the tool is registered with the API at all. Azure requires both to be disabled
+# if your org doesn't have web search access — set both or neither.
+web_search = "cached"                  # "cached"/"live"/"disabled"
 
 [analytics]
 enabled = false
@@ -63,6 +67,10 @@ no_memories_if_mcp_or_web_search = false
 
 # ── Features ──────────────────────────────────────────────────────────────────
 [features]
+# If Azure rejects web_search_preview ("Tool disabled for this organization"),
+# set web_search = false here AND web_search = "disabled" at the top level.
+# The top-level mode controls fetch behavior; this controls API tool registration.
+# web_search = false
 undo = true                # git snapshot at each turn — enables per-step undo
 multi_agent = true         # spawn parallel sub-agents for larger tasks
 child_agents_md = true     # sub-agents inherit AGENTS.md coaching (critical — off by default)
