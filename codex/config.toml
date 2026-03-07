@@ -5,13 +5,22 @@
 # minimal outbound noise. Drop this in ~/.codex/config.toml and adjust to taste.
 #
 # Docs: https://developers.openai.com/codex/config-reference/
+#
+# ⚠ TOML ORDERING: All root-level keys MUST appear before any [table] headers.
+# A key placed after a [table] header is parsed as part of that table, not the root,
+# and will be silently ignored. Keep all plain key = value lines above [sections].
 
-# ── Model & Reasoning ─────────────────────────────────────────────────────────
+# ── Global ────────────────────────────────────────────────────────────────────
 # Uncomment and set your model. Can be overridden per-project in .codex/config.toml
 # model = "gpt-5.2"
 
 suppress_unstable_features_warning = true
+check_for_update_on_startup = false
+web_search = "cached"                  # "cached"/"live"/"disabled" — must be root-level or it's ignored
+approval_policy = "on-request"         # model decides when to ask; much less friction than default
+sandbox_mode = "workspace-write"       # write freely within project, read anywhere
 
+# ── Model & Reasoning ─────────────────────────────────────────────────────────
 model_reasoning_effort = "xhigh"       # none/minimal/low/medium/high/xhigh
 model_reasoning_summary = "detailed"   # show reasoning steps in output (auto/concise/detailed/none)
 model_verbosity = "high"               # low/medium/high
@@ -29,20 +38,15 @@ project_doc_max_bytes = 65536          # read up to 64KB of AGENTS.md
 project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
 
 # ── Approval & Sandbox ────────────────────────────────────────────────────────
-# "on-request" = model decides when to ask; much less friction than the default
-approval_policy = "on-request"
-sandbox_mode = "workspace-write"       # write freely within project, read anywhere
-
+# approval_policy and sandbox_mode are set in the Global section above.
 # For fully trusted sessions use: codex --full-auto
 # To bypass everything for a session: codex --yolo
 
 # ── Outbound Privacy ──────────────────────────────────────────────────────────
-check_for_update_on_startup = false
-
-# web_search mode controls fetch behavior; features.web_search controls whether
-# the tool is registered with the API at all. Azure requires both to be disabled
-# if your org doesn't have web search access — set both or neither.
-web_search = "cached"                  # "cached"/"live"/"disabled"
+# check_for_update_on_startup and web_search are set in the Global section above.
+# Azure: if you get "Tool 'web_search_preview' disabled for this organization",
+# set web_search = "disabled" in the Global section above. The key must be at
+# root level — placing it after any [table] header causes it to be silently ignored.
 
 [analytics]
 enabled = false
