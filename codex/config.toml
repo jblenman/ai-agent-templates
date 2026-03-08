@@ -17,7 +17,9 @@
 suppress_unstable_features_warning = true
 check_for_update_on_startup = false
 web_search = "cached"                  # "cached"/"live"/"disabled" — must be root-level or it's ignored
-approval_policy = "on-request"         # model decides when to ask; much less friction than default
+approval_policy = "untrusted"           # auto-approves safe read-only ops; still prompts for writes/exec
+                                       # "on-request" = model decides (asks too much)
+                                       # "never" = no prompts at all (use for fully trusted sessions)
 sandbox_mode = "workspace-write"       # write freely within project, read anywhere
 
 # ── Model & Reasoning ─────────────────────────────────────────────────────────

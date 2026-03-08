@@ -72,11 +72,11 @@ If no `AGENTS.md` exists in a project, Codex checks these filenames instead. Thi
 
 ### Approval & Sandbox
 
-**`approval_policy = "on-request"`**
+**`approval_policy = "untrusted"`**
 Controls when Codex asks for permission before running commands.
-- `"on-request"` — model decides when to ask. Significantly less friction than the default without being fully autonomous
-- `"never"` — never asks; failures are returned to the model. Use for fully trusted environments or combine with `--full-auto`
-- `"untrusted"` — auto-approves known safe read-only commands; asks for anything that writes or executes
+- `"untrusted"` — auto-approves known safe read-only commands; still prompts for anything that writes or executes. Best default: reads never interrupt you, destructive ops still require approval
+- `"on-request"` — model decides when to ask. Tends to ask constantly, even for reads
+- `"never"` — never asks; failures are returned to the model. Use for fully trusted sessions or the `fast` profile
 
 **`sandbox_mode = "workspace-write"`**
 Controls what Codex can access on the filesystem.
