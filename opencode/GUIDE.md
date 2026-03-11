@@ -125,9 +125,10 @@ A [pending PR (#16959)](https://github.com/anomalyco/opencode/pull/16959) fixes 
 
 ### Prerequisites
 
-- **Bun 1.3+** — [install](https://bun.sh/docs/installation)
+- **Bun 1.3+** — a JavaScript/TypeScript runtime (like Node.js). MIT licensed, single binary, no background services or telemetry.
   - macOS/Linux: `curl -fsSL https://bun.sh/install | bash`
   - Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
+  - **Windows AVD / restricted environments:** `npm install -g bun` (avoids curl/domain issues, uses Node.js's OpenSSL which bypasses schannel restrictions)
 - **Git**
 
 ### Clone and Build
@@ -146,7 +147,7 @@ bun dev
 # Option B: Build a standalone binary for your platform
 cd packages/opencode
 bun run script/build.ts --single
-# Binary output: dist/opencode-{platform}-{arch}/bin/opencode
+# Binary output: dist/opencode-{platform}-{arch}/bin/opencode[.exe]
 ```
 
 ### Install the Binary
@@ -159,9 +160,41 @@ cp packages/opencode/dist/opencode-darwin-arm64/bin/opencode /usr/local/bin/open
 
 # Windows (from Git Bash or PowerShell)
 cp packages/opencode/dist/opencode-windows-x64/bin/opencode.exe $HOME/bin/opencode-patched.exe
+# Or add the dist directory to your PATH
 ```
 
 Use `opencode-patched` to avoid conflicting with an existing npm install of `opencode`.
+
+### Windows AVD Quick Start
+
+If you're on a government AVD with Node.js/npm already available:
+
+```powershell
+# 1. Install Bun via npm (bypasses curl/schannel issues)
+npm install -g bun
+
+# 2. Clone and build
+git clone -b fix/compaction-preserve-instructions https://github.com/jblenman/opencode.git
+cd opencode
+bun install
+
+# 3a. Run directly from source
+bun dev
+
+# 3b. Or build a standalone binary
+cd packages/opencode
+bun run script/build.ts --single
+# Copy dist/opencode-windows-x64/bin/opencode.exe to your PATH
+
+# 4. Don't forget the security env vars (if not already set)
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_SHARE", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_MODELS_FETCH", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_AUTOUPDATE", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_LSP_DOWNLOAD", "true", "User")
+[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_EXTERNAL_SKILLS", "true", "User")
+```
+
+**Note:** The `bun install` step will pull packages from `registry.npmjs.org`, which should be accessible on the AVD (Node.js uses OpenSSL, not schannel). If the `github.com/jblenman/opencode` repo is blocked by the keyword firewall, try cloning via SSH or ask your team to whitelist it — the repo name shouldn't trigger content categorization filters.
 
 ### Staying Up to Date
 
