@@ -119,9 +119,32 @@ OpenCode also supports an `AGENTS.md` reasoning section. Plan mode (Tab) provide
 
 ---
 
-## Building from Source (Patched Fork)
+## Building from Source (Hardened Fork)
 
-A [pending PR (#16959)](https://github.com/anomalyco/opencode/pull/16959) fixes instruction loss during compaction by preserving AGENTS.md/CLAUDE.md context across compaction boundaries. Until it's merged, you can build from the patched fork.
+Two branches are available on the [fork](https://github.com/jblenman/opencode):
+
+| Branch | What it does |
+|---|---|
+| `fix/compaction-preserve-instructions` | Compaction fix only ([PR #16959](https://github.com/anomalyco/opencode/pull/16959)) |
+| `hardened/federal-secure` | Compaction fix **+ all security flags baked in** (recommended for gov/restricted environments) |
+
+The hardened branch bakes all security settings into the source code so they **cannot be overridden** by environment variables or config. The only outbound connection is to your configured LLM provider.
+
+### What's hardened
+
+| Feature | Outbound target | Status in hardened build |
+|---|---|---|
+| Session sharing | `opncd.ai` | **Removed** — hardcoded `disabled = true` in source |
+| Auto-update checks | npmjs, GitHub, brew, choco, scoop | **Removed** — flag hardcoded |
+| Model catalog fetch | `models.dev` | **Removed** — uses bundled snapshot |
+| LSP binary downloads | GitHub (9+ repos) | **Removed** — flag hardcoded |
+| External skill loading | Local filesystem scan | **Removed** — flag hardcoded |
+| Exa web/code search | `mcp.exa.ai` | **Removed** — flag hardcoded to `false` |
+| OpenTelemetry spans | Wherever OTLP is configured | **Removed** — hardcoded `false` |
+| Ripgrep download | GitHub | **Removed** — errors if `rg` not on PATH |
+| LLM API calls | Your Azure/provider endpoint | **Unchanged** — this is the core function |
+
+Environment variables for these features are ignored — the values are constants in the source. Each change is marked with a `HARDENED BUILD` comment explaining what was changed and how to revert.
 
 ### Prerequisites
 
@@ -130,12 +153,16 @@ A [pending PR (#16959)](https://github.com/anomalyco/opencode/pull/16959) fixes 
   - Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
   - **Windows AVD / restricted environments:** `npm install -g bun` (avoids curl/domain issues, uses Node.js's OpenSSL which bypasses schannel restrictions)
 - **Git**
+- **ripgrep** — must be pre-installed on PATH (hardened build won't download it)
+  - Windows: `scoop install ripgrep` or `choco install ripgrep` or `npm install -g @vscode/ripgrep`
+  - macOS: `brew install ripgrep`
+  - Linux: `apt install ripgrep` or `dnf install ripgrep`
 
 ### Clone and Build
 
 ```bash
-# Clone the patched fork
-git clone -b fix/compaction-preserve-instructions https://github.com/jblenman/opencode.git
+# Clone the hardened fork
+git clone -b hardened/federal-secure https://github.com/jblenman/opencode.git
 cd opencode
 
 # Install dependencies
@@ -173,60 +200,55 @@ If you're on a government AVD with Node.js/npm already available:
 # 1. Install Bun via npm (bypasses curl/schannel issues)
 npm install -g bun
 
-# 2. Clone and build
-git clone -b fix/compaction-preserve-instructions https://github.com/jblenman/opencode.git
+# 2. Ensure ripgrep is installed
+scoop install ripgrep   # or: choco install ripgrep
+
+# 3. Clone and build
+git clone -b hardened/federal-secure https://github.com/jblenman/opencode.git
 cd opencode
 bun install
 
-# 3a. Run directly from source
+# 4a. Run directly from source
 bun dev
 
-# 3b. Or build a standalone binary
+# 4b. Or build a standalone binary
 cd packages/opencode
 bun run script/build.ts --single
 # Copy dist/opencode-windows-x64/bin/opencode.exe to your PATH
-
-# 4. Don't forget the security env vars (if not already set)
-[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_SHARE", "true", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_MODELS_FETCH", "true", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_AUTOUPDATE", "true", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_LSP_DOWNLOAD", "true", "User")
-[Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_EXTERNAL_SKILLS", "true", "User")
 ```
 
-**Note:** The `bun install` step will pull packages from `registry.npmjs.org`, which should be accessible on the AVD (Node.js uses OpenSSL, not schannel). If the `github.com/jblenman/opencode` repo is blocked by the keyword firewall, try cloning via SSH or ask your team to whitelist it — the repo name shouldn't trigger content categorization filters.
+No security environment variables needed — they're baked into the source.
+
+**Note:** The `bun install` step pulls packages from `registry.npmjs.org`, which should be accessible on the AVD (Node.js uses OpenSSL, not schannel). If `github.com/jblenman/opencode` is blocked by the keyword firewall, try cloning via SSH or ask your team to whitelist it — the repo name shouldn't trigger content categorization filters.
 
 ### Staying Up to Date
 
 ```bash
 cd opencode
 
-# Pull latest changes from the fork
-git pull origin fix/compaction-preserve-instructions
-
-# If the PR gets merged, switch to tracking upstream dev
-git remote add upstream https://github.com/sst/opencode.git
-git fetch upstream
-git checkout upstream/dev
+# Pull latest changes from the hardened fork
+git pull origin hardened/federal-secure
 
 # Rebuild
 bun install
 cd packages/opencode && bun run script/build.ts --single
 ```
 
-### What the Patch Changes
+If the compaction PR (#16959) gets merged upstream, the hardened branch will be rebased to include future upstream changes.
 
-1. **Compaction system prompt** — passes AGENTS.md/CLAUDE.md content into the compaction LLM call (was `system: []`, now includes instructions)
-2. **Summary template** — adds "Active Project Instructions" section so the summarizer explicitly captures behavioral rules
-3. **Post-compaction injection** — injects instructions as a `<system-reminder>` message after compaction, similar to how Claude Code re-injects CLAUDE.md after compression
+### Compaction Fix Details
 
-All changes are backward-compatible — if no instruction files exist, they're no-ops.
+Included in both branches. Fixes AGENTS.md/CLAUDE.md instructions being lost after compaction:
+
+1. **Compaction system prompt** — passes project instructions into the compaction LLM call (was `system: []`)
+2. **Summary template** — adds "Active Project Instructions" section to capture behavioral rules
+3. **Post-compaction injection** — injects instructions as a `<system-reminder>` message after compaction
 
 ---
 
 ## Known Issues (March 2026)
 
 - **Codex models** (`gpt-5.3-codex`) don't work via `@ai-sdk/azure` — requires Responses API, which isn't supported yet. Use `gpt-5.2`. Track [issue #13999](https://github.com/sst/opencode/issues/13999).
-- **Instruction loss during compaction** — AGENTS.md rules are lost after compaction because the compaction summarizer runs with an empty system prompt. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959), available now via the patched fork (see Building from Source above).
+- **Instruction loss during compaction** — AGENTS.md rules are lost after compaction because the compaction summarizer runs with an empty system prompt. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959), included in both fork branches (see Building from Source above).
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
 - **Anthropic OAuth** was removed in early 2026 — Claude requires a direct API key, not a Pro/Max subscription.
