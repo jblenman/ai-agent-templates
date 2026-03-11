@@ -36,7 +36,8 @@ Set these as User environment variables to block unnecessary outbound calls:
 
 ### `"model"`
 The default model to use. Format is `"provider-key/model-key"` matching the keys you define in `"provider"`.
-- Change to `"gov-gpt/gpt-5-mini"` for a faster, cheaper default
+- Change to `"azure/gpt-5-mini"` for a faster, cheaper default
+- Change to `"azure/gpt-5.3-codex"` for the Codex model (see [Codex models](#codex-models-gpt-53-codex) below)
 - The model can be changed mid-session with `/model`
 
 ### `"disabled_providers"`
@@ -46,8 +47,14 @@ Removes providers from the model picker. `"opencode"` removes the built-in Zen/O
 ### `"provider"`
 Defines custom LLM providers. Each key becomes a provider ID used in `"model"`.
 
+**Why the provider key must be `"azure"` (not a custom name)**
+The provider key must match `"azure"` exactly — not a custom name like `"gov-gpt"`. OpenCode has a built-in model loader for the `"azure"` provider that automatically uses the correct API format (Responses API) for newer models like Codex. If you use a custom name, the loader doesn't apply and Codex models will fail with "chatCompletion operation does not work with the specified model." Use `"whitelist"` to control which models appear in the picker.
+
 **Why `@ai-sdk/azure` instead of `@ai-sdk/openai-compatible`?**
 The `openai-compatible` SDK appends `/v1` to the base URL, which Azure doesn't expect, causing "Resource not found" errors. The `azure` SDK uses `resourceName` and constructs the URL correctly.
+
+**`"env": ["AZURE_OPENAI_API_KEY"]`**
+**Required for Codex/Responses API models.** This tells OpenCode to check this environment variable during provider initialization. Without it, the azure provider may not be detected early enough for the Responses API model loader to register, causing Codex models to fall back to Chat Completions and fail. The env var name must match the one you set on your system.
 
 **`"resourceName"`**
 Your Azure OpenAI resource name (the subdomain part of `your-resource.openai.azure.com`). Replace `YOUR_RESOURCE_NAME` with the actual name.
@@ -56,7 +63,10 @@ Your Azure OpenAI resource name (the subdomain part of `your-resource.openai.azu
 References an environment variable rather than hardcoding the key. Never put API keys directly in the config file.
 - Change the env var name to match whatever variable your org uses
 
-**Model keys** (`"gpt-5.2"`, `"gpt-5-mini"`)
+**`"whitelist"`**
+Limits the model picker to only the models you define. Without this, you may see extra built-in Azure models from OpenCode's bundled model catalog alongside yours.
+
+**Model keys** (`"gpt-5.2"`, `"gpt-5-mini"`, `"gpt-5.3-codex"`)
 Must exactly match your Azure deployment names. If your deployment is named differently (e.g., `"gpt52-prod"`), update the key.
 
 **`"limit": { "context": 400000, "output": 128000 }`**
@@ -64,11 +74,19 @@ Tells OpenCode the model's token limits. These are used to calculate context usa
 
 ---
 
-### Why no `gpt-5.3-codex`?
+### Codex models (`gpt-5.3-codex`)
 
-Codex models require the **Responses API** (`/openai/responses`), but OpenCode's `@ai-sdk/azure` defaults to Chat Completions. This causes an error: "chatCompletion operation does not work with the specified model." Track [GitHub issue #13999](https://github.com/sst/opencode/issues/13999) for a fix.
+Codex models require the **Responses API** (`/openai/responses`), not Chat Completions. OpenCode's built-in `azure` provider loader handles this automatically — it defaults to the Responses API for all models.
 
-`gpt-5.2` is a strong alternative — very capable for coding tasks.
+**This only works if your provider key is `"azure"`.** If you use a custom name (e.g., `"gov-gpt"`), OpenCode won't apply the azure-specific loader and will fall back to Chat Completions, causing the error: "chatCompletion operation does not work with the specified model."
+
+To use Codex (or any model requiring Responses API):
+1. Ensure your provider key is `"azure"` (as in the provided config)
+2. Include `"env": ["AZURE_OPENAI_API_KEY"]` in the provider config (this ensures the Responses API loader registers during initialization — without it, the loader may silently fail to register due to a timing issue in the provider initialization order)
+3. Add your model entry in `"models"` matching your Azure deployment name
+4. Switch to it with `/model` or set it as default: `"model": "azure/gpt-5.3-codex"`
+
+See also: [GitHub issue #13999](https://github.com/sst/opencode/issues/13999) for upstream tracking (different root cause — Cognitive Services endpoints — but same symptom).
 
 ---
 
@@ -248,7 +266,7 @@ Included in both branches. Fixes AGENTS.md/CLAUDE.md instructions being lost aft
 
 ## Known Issues (March 2026)
 
-- **Codex models** (`gpt-5.3-codex`) don't work via `@ai-sdk/azure` — requires Responses API, which isn't supported yet. Use `gpt-5.2`. Track [issue #13999](https://github.com/sst/opencode/issues/13999).
+- **Codex models** (`gpt-5.3-codex`) require the provider key to be `"azure"` exactly — custom names (e.g., `"gov-gpt"`) don't inherit the Responses API loader and will fail. See [Codex models](#codex-models-gpt-53-codex).
 - **Instruction loss during compaction** — AGENTS.md rules are lost after compaction because the compaction summarizer runs with an empty system prompt. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959), included in both fork branches (see Building from Source above).
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
 - **Anthropic OAuth** was removed in early 2026 — Claude requires a direct API key, not a Pro/Max subscription.
