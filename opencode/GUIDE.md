@@ -94,21 +94,22 @@ OpenCode makes several outbound calls that may be blocked in restricted environm
 
 ### Key differences from Codex AGENTS.md
 
-**Context truncation warning** — OpenCode deletes the oldest messages when the context window fills, with no compression. This file's instructions can be silently lost mid-session. The Session Management section addresses this directly.
+**Compaction** — OpenCode uses LLM-based compaction (not simple truncation). When the context window fills, it sends the conversation to a summarizer and continues from the summary. However, without the [patched fork](#building-from-source-patched-fork), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost. The Session Management section addresses this.
 
 **Plan mode** — OpenCode's plan mode is activated with **Tab** in the composer. This switches to a read-only exploration mode where the model can look at files without making changes. Use it before any non-trivial implementation. The Codex equivalent is prompting explicitly ("explore only, don't make changes yet").
 
-**`/compact`** — OpenCode's manual compaction command. Run it proactively when the context window starts getting full. Don't wait for auto-truncation, which drops your earliest context (including these instructions) first.
+**`/compact`** — OpenCode's manual compaction command. Run it proactively when the context window starts getting full. This triggers LLM summarization rather than waiting for auto-compaction (which can happen mid-response).
 
 ### Session management strategy
 
-The context truncation problem fundamentally changes how you should work with OpenCode compared to Codex:
+Even with compaction, long sessions can lose instruction context. These practices help:
 
 1. **Keep sessions shorter.** Treat sessions as disposable. Start fresh often.
-2. **Session context file is your continuity.** Not a nice-to-have — it's how you carry context between sessions without relying on conversation history that will be truncated.
-3. **Restart, don't rescue.** When behavior degrades (shallow responses, ignoring git rules, losing project context), starting a fresh session with your context notes is dramatically more effective than trying to re-inject instructions into a degraded session drowning in stale context.
+2. **Session context file is your continuity.** Not a nice-to-have — it's how you carry context between sessions. The compaction summary captures what you did, but the session context file carries the full picture.
+3. **Restart, don't rescue.** When behavior degrades (shallow responses, ignoring git rules, losing project context), starting a fresh session with your context notes is dramatically more effective than trying to re-inject instructions into a degraded session.
 4. **Watch the token counter.** When usage is high, wrap up or start fresh.
-5. **Verify periodically.** Ask "repeat back your core instructions from AGENTS.md" to confirm instructions haven't been truncated.
+5. **Use `/compact` proactively.** Don't wait for auto-compaction — triggering it manually gives you control over when summarization happens.
+6. **Use the patched fork.** The [build-from-source instructions](#building-from-source-patched-fork) describe how to run a version that preserves AGENTS.md across compaction.
 
 ### Reasoning coaching
 
@@ -118,9 +119,81 @@ OpenCode also supports an `AGENTS.md` reasoning section. Plan mode (Tab) provide
 
 ---
 
+## Building from Source (Patched Fork)
+
+A [pending PR (#16959)](https://github.com/anomalyco/opencode/pull/16959) fixes instruction loss during compaction by preserving AGENTS.md/CLAUDE.md context across compaction boundaries. Until it's merged, you can build from the patched fork.
+
+### Prerequisites
+
+- **Bun 1.3+** — [install](https://bun.sh/docs/installation)
+  - macOS/Linux: `curl -fsSL https://bun.sh/install | bash`
+  - Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
+- **Git**
+
+### Clone and Build
+
+```bash
+# Clone the patched fork
+git clone -b fix/compaction-preserve-instructions https://github.com/jblenman/opencode.git
+cd opencode
+
+# Install dependencies
+bun install
+
+# Option A: Run directly from source (dev mode)
+bun dev
+
+# Option B: Build a standalone binary for your platform
+cd packages/opencode
+bun run script/build.ts --single
+# Binary output: dist/opencode-{platform}-{arch}/bin/opencode
+```
+
+### Install the Binary
+
+After building with `--single`, copy the binary to your PATH:
+
+```bash
+# macOS/Linux
+cp packages/opencode/dist/opencode-darwin-arm64/bin/opencode /usr/local/bin/opencode-patched
+
+# Windows (from Git Bash or PowerShell)
+cp packages/opencode/dist/opencode-windows-x64/bin/opencode.exe $HOME/bin/opencode-patched.exe
+```
+
+Use `opencode-patched` to avoid conflicting with an existing npm install of `opencode`.
+
+### Staying Up to Date
+
+```bash
+cd opencode
+
+# Pull latest changes from the fork
+git pull origin fix/compaction-preserve-instructions
+
+# If the PR gets merged, switch to tracking upstream dev
+git remote add upstream https://github.com/sst/opencode.git
+git fetch upstream
+git checkout upstream/dev
+
+# Rebuild
+bun install
+cd packages/opencode && bun run script/build.ts --single
+```
+
+### What the Patch Changes
+
+1. **Compaction system prompt** — passes AGENTS.md/CLAUDE.md content into the compaction LLM call (was `system: []`, now includes instructions)
+2. **Summary template** — adds "Active Project Instructions" section so the summarizer explicitly captures behavioral rules
+3. **Post-compaction injection** — injects instructions as a `<system-reminder>` message after compaction, similar to how Claude Code re-injects CLAUDE.md after compression
+
+All changes are backward-compatible — if no instruction files exist, they're no-ops.
+
+---
+
 ## Known Issues (March 2026)
 
 - **Codex models** (`gpt-5.3-codex`) don't work via `@ai-sdk/azure` — requires Responses API, which isn't supported yet. Use `gpt-5.2`. Track [issue #13999](https://github.com/sst/opencode/issues/13999).
-- **Context truncation** is the biggest operational issue with OpenCode. See Session Management above.
+- **Instruction loss during compaction** — AGENTS.md rules are lost after compaction because the compaction summarizer runs with an empty system prompt. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959), available now via the patched fork (see Building from Source above).
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
 - **Anthropic OAuth** was removed in early 2026 — Claude requires a direct API key, not a Pro/Max subscription.
