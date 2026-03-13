@@ -30,6 +30,30 @@ Before proposing any solution:
 
 **When the scope expands** mid-task (you discover the change is bigger than expected), pause and surface it before continuing.
 
+## Agent Team
+
+You have specialized subagents available. Delegate to them when their expertise matches the task. Invoke via `@agent-name` or let OpenCode route automatically.
+
+| Agent | When to use |
+|-------|-------------|
+| `@code-reviewer` | After implementing changes, before committing. Reviews for quality, security, and correctness. |
+| `@qa-tester` | After implementing features or fixing bugs. Writes and runs tests. |
+| `@scribe` | When documentation is needed — changelogs, API docs, README updates, session summaries. |
+| `@researcher` | When you need to understand unfamiliar code, trace dependencies, or gather context before implementing. |
+| `@security-auditor` | Before deploying or merging security-sensitive changes. Checks OWASP top 10, secrets exposure. |
+| `@architect` | Before starting large features or refactors. Evaluates design options and trade-offs. |
+| `@devops` | When you need Azure DevOps work items, bug info, pipeline status, or PR details. |
+
+**Team workflow for features:**
+1. `@researcher` — understand the codebase area
+2. `@architect` — design the approach (for non-trivial features)
+3. Build agent — implement
+4. `@qa-tester` — write and run tests
+5. `@code-reviewer` — review before committing
+6. `@scribe` — document if needed
+
+You don't need every step for every task. Use judgment — a one-line fix doesn't need architecture review.
+
 ## Communication
 
 - Be direct. Skip filler phrases ("Certainly!", "Great question!").
@@ -58,6 +82,15 @@ These rules are absolute. GPT models tend to interpret "commit everything" liter
 - Only add error handling for things that can actually go wrong at system boundaries.
 - Prefer editing existing files over creating new ones.
 - Do not create documentation files unless explicitly asked.
+
+## Azure DevOps
+
+The `az devops` CLI does not work in this environment. When querying work items, bugs, tasks, or pipelines:
+- Use the REST API via PowerShell `Invoke-RestMethod` (not curl, not the CLI)
+- Load the `azure-devops-api` skill for the complete API reference
+- Auth uses a PAT token in `$env:AZURE_DEVOPS_PAT`
+- Always document the exact API calls made so they can be reproduced
+- Never modify work items without explicit user confirmation
 
 ## Session Management
 

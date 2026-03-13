@@ -1,51 +1,250 @@
 # OpenCode — Configuration Guide
 
-Reference for `opencode.json` and `AGENTS.md` settings, with reasoning behind each choice and alternatives.
+Reference for `opencode.json`, `AGENTS.md`, agent team, skills, commands, and tools. Includes reasoning behind each choice and alternatives.
 
-## Installation
+## Quick Install
 
-```bash
-# Config
-mkdir -p ~/.config/opencode
-curl -o ~/.config/opencode/opencode.json https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/opencode/opencode.json
-
-# Edit opencode.json — replace YOUR_RESOURCE_NAME with your Azure resource name
-
-# Set your API key as an environment variable (Windows)
-[Environment]::SetEnvironmentVariable("AZURE_OPENAI_API_KEY", "your-key", "User")
-
-# Coaching file
-curl -o ~/.config/opencode/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/opencode/AGENTS.md
-```
-
-### Required environment variables (Windows AVD)
-
-Set these as User environment variables to block unnecessary outbound calls:
+Clone the templates repo, then copy files into place. Direct downloads from `raw.githubusercontent.com` may be blocked by content filters on restricted networks, but `git clone` works.
 
 ```powershell
+# === Clone the templates repo (if not already cloned) ===
+git clone https://github.com/jblenman/ai-agent-templates.git "$HOME\ai-agent-templates"
+# Or if already cloned:
+# cd "$HOME\ai-agent-templates" && git pull
+
+# === Copy everything into place ===
+$src = "$HOME\ai-agent-templates\opencode"
+$dst = "$HOME\.config\opencode"
+
+# Config + coaching
+mkdir -Force $dst
+Copy-Item "$src\opencode.json" "$dst\opencode.json"
+Copy-Item "$src\AGENTS.md" "$dst\AGENTS.md"
+# Edit opencode.json — replace YOUR_RESOURCE_NAME with your Azure resource name
+
+# Agent team
+mkdir -Force "$dst\agents"
+Copy-Item "$src\agents\*.md" "$dst\agents\"
+
+# Skills
+mkdir -Force "$dst\skills\azure-devops-api"
+Copy-Item "$src\skills\azure-devops-api\SKILL.md" "$dst\skills\azure-devops-api\SKILL.md"
+
+# Commands
+mkdir -Force "$dst\commands"
+Copy-Item "$src\commands\*.md" "$dst\commands\"
+```
+
+### Updating
+
+When templates are updated, pull and re-copy:
+
+```powershell
+cd "$HOME\ai-agent-templates"
+git pull
+$src = "$HOME\ai-agent-templates\opencode"
+$dst = "$HOME\.config\opencode"
+Copy-Item "$src\opencode.json" "$dst\opencode.json"
+Copy-Item "$src\AGENTS.md" "$dst\AGENTS.md"
+Copy-Item "$src\agents\*.md" "$dst\agents\"
+Copy-Item "$src\skills\azure-devops-api\SKILL.md" "$dst\skills\azure-devops-api\SKILL.md"
+Copy-Item "$src\commands\*.md" "$dst\commands\"
+```
+
+### Required Environment Variables (Windows AVD)
+
+Set as User environment variables. Restart your terminal after setting these.
+
+```powershell
+# Block unnecessary outbound calls
 [Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_SHARE", "true", "User")
 [Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_MODELS_FETCH", "true", "User")
 [Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_AUTOUPDATE", "true", "User")
 [Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_LSP_DOWNLOAD", "true", "User")
 [Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_EXTERNAL_SKILLS", "true", "User")
+
+# Azure OpenAI
+[Environment]::SetEnvironmentVariable("AZURE_OPENAI_API_KEY", "your-key", "User")
+
+# Azure DevOps (for /workitems and devops agent)
+[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-pat-token", "User")
+[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-org-name", "User")
+[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PROJECT", "your-project-name", "User")
+
+# Critical: OpenCode TUI uses a local HTTP server — must bypass proxy
+[Environment]::SetEnvironmentVariable("NO_PROXY", "localhost,127.0.0.1", "User")
+
+# If your org uses a proxy
+# [Environment]::SetEnvironmentVariable("HTTPS_PROXY", "http://proxy:8080", "User")
+
+# If your org has custom CA certificates
+# [Environment]::SetEnvironmentVariable("NODE_EXTRA_CA_CERTS", "C:\path\to\ca-bundle.pem", "User")
+```
+
+### Windows Terminal: Fix Shift+Enter
+
+Add to your Windows Terminal `settings.json` (Settings > Open JSON file) under `"actions"`:
+
+```json
+{
+    "command": { "action": "sendInput", "input": "\u001b[13;2u" },
+    "id": "User.sendInput.ShiftEnterCustom"
+}
+```
+
+Without this, Shift+Enter won't create new lines in the OpenCode input.
+
+---
+
+## Agent Team
+
+The agent team gives you specialized subagents that the primary build agent (or you) can invoke via `@mention` or through custom commands.
+
+### Team Roster
+
+| Agent | Role | Model | Tool Access |
+|-------|------|-------|-------------|
+| **build** (built-in) | Primary coding agent | gpt-5.4 | Full |
+| **plan** (built-in) | Read-only exploration (Tab to switch) | gpt-5.4 | Read only |
+| **code-reviewer** | Reviews code for quality and security | gpt-5.4 | Read only |
+| **qa-tester** | Writes and runs tests | gpt-5.2 | Read + write + bash (test commands allowed) |
+| **scribe** | Writes documentation | gpt-5-mini | Read + write (no bash) |
+| **researcher** | Explores codebase, gathers context | gpt-5-mini | Read only |
+| **security-auditor** | OWASP top 10, vulnerability scanning | gpt-5.4 | Read only |
+| **architect** | Design decisions, trade-off analysis | gpt-5.4 | Read only |
+| **devops** | Azure DevOps work items, pipelines | gpt-5.2 | Read + write + bash (API calls allowed) |
+
+### Model Assignments Rationale
+
+- **gpt-5.4** for agents needing strong reasoning (code review, security, architecture, primary coding)
+- **gpt-5.2** for agents needing reliable execution (testing, DevOps API calls)
+- **gpt-5-mini** for agents doing text-heavy but reasoning-light work (docs, search)
+- Adjust based on your deployment availability and cost preferences
+
+### How to Use
+
+**Direct invocation via @mention:**
+```
+@code-reviewer review the auth middleware in src/auth/
+@security-auditor scan the API controllers
+@devops get my active bugs
+@architect evaluate whether we should switch from REST to gRPC
+```
+
+**Via custom commands (slash commands):**
+```
+/workitems                           # get your active work items
+/workitems bugs assigned to me       # specific query
+/review                              # review uncommitted changes
+/review src/auth/                    # review specific files
+/test src/services/user.ts           # write tests for specific code
+/document                            # document recent changes
+/security-scan                       # audit changed files
+/design migration to microservices   # architecture analysis
+```
+
+**Automatic delegation:**
+The build agent can invoke subagents when it recognizes a task matches their specialty. For example, after implementing a feature, it may invoke the qa-tester to write tests.
+
+**Navigate child sessions:**
+When a subagent runs, it creates a child session. Navigate with:
+- `<leader>+Down` — enter child session
+- `Right/Left` — cycle between child sessions
+- `Up` — return to parent
+
+### Customizing Agents
+
+Agent files are in `~/.config/opencode/agents/`. Edit any `.md` file to change:
+- **Model** — change the `model:` frontmatter
+- **Prompt** — edit the markdown body
+- **Tool access** — toggle tools in the `tools:` frontmatter
+- **Permissions** — adjust `permission:` for granular control
+
+Create new agents by adding a new `.md` file. The filename becomes the agent ID.
+
+---
+
+## Azure DevOps Integration
+
+The DevOps agent + skill solve the problem of GPT having to rediscover the REST API every session.
+
+### Why REST instead of CLI
+
+The `az devops` CLI doesn't work reliably on AVD (auth issues, module loading failures). The REST API via PowerShell's `Invoke-RestMethod` is reliable and requires only a PAT token.
+
+### Setup
+
+1. Generate a PAT in Azure DevOps with these scopes:
+   - **Work Items**: Read & Write
+   - **Code**: Read (for PR queries)
+   - **Build**: Read (for pipeline queries)
+2. Set the environment variables (see Quick Install above)
+3. Test: run `/workitems` in OpenCode
+
+### How It Works
+
+1. You run `/workitems` (or `@devops get my bugs`)
+2. OpenCode invokes the **devops** subagent
+3. The devops agent loads the **azure-devops-api** skill (comprehensive REST API reference with auth patterns, endpoints, WIQL queries, field names)
+4. The agent executes PowerShell commands to query the API
+5. Results are formatted as a table
+
+The skill contains every endpoint pattern, WIQL query example, and field name reference — so the agent never has to rediscover the API. It also documents the exact auth header format, error codes, and gotchas.
+
+### Example Queries
+
+```
+/workitems                                    # your active items
+/workitems all active bugs                    # all open bugs
+/workitems tasks in current sprint            # sprint tasks
+/workitems changed in the last 3 days         # recent activity
+/workitems create a bug titled "Login fails"  # create a work item
+@devops check the status of pipeline 42       # pipeline status
+@devops get PR comments on repo/PR#100        # PR review comments
 ```
 
 ---
 
 ## opencode.json Reference
 
-### `"model"`
-The default model to use. Format is `"provider-key/model-key"` matching the keys you define in `"provider"`.
-- Change to `"azure/gpt-5-mini"` for a faster, cheaper default
-- Change to `"azure/gpt-5.3-codex"` for the Codex model (see [Codex models](#codex-models-gpt-53-codex) below)
-- The model can be changed mid-session with `/model`
+### New Settings (beyond the original config)
 
-### `"disabled_providers"`
-Removes providers from the model picker. `"opencode"` removes the built-in Zen/OpenCode gateway, which requires a paid OpenCode subscription and has no use on Azure.
-- Add other built-in provider names you don't need to keep the model list clean
+**`"small_model"`**
+A faster/cheaper model for background tasks (session titles, summaries). Set to `gpt-5-mini` to save on token costs for non-critical operations.
 
-### `"provider"`
-Defines custom LLM providers. Each key becomes a provider ID used in `"model"`.
+**`"share": "disabled"`**
+Explicitly disables session sharing in the config (in addition to the env var). Belt and suspenders — prevents any accidental sharing of code to `opncd.ai`.
+
+**`"autoupdate": false`**
+Disables update checks. Pair with `OPENCODE_DISABLE_AUTOUPDATE=true` env var.
+
+**`"compaction"`**
+```json
+{
+    "auto": true,
+    "prune": true,
+    "reserved": 10000
+}
+```
+- `auto` — automatically compact when context fills up
+- `prune` — remove old tool outputs during compaction (saves tokens)
+- `reserved` — keep 10K tokens reserved for the next response
+
+**`"permission"`**
+Granular permission rules. Last matching pattern wins.
+- Read operations allowed by default
+- Write/edit allowed (you're the only user on AVD)
+- Bash uses glob patterns: common dev commands allowed, destructive commands (`rm`, `del`) require confirmation
+- Azure DevOps API calls (curl/PowerShell to `dev.azure.com`) auto-allowed
+- Web fetch/search denied (air-gapped)
+- External directory access requires confirmation
+
+**`"instructions"`**
+Additional files loaded as instructions alongside AGENTS.md. Add your project's `CONTRIBUTING.md` or other guidelines.
+
+### Provider Config
+
+See the original guide sections below — unchanged.
 
 **Why the provider key must be `"azure"` (not a custom name)**
 The provider key must match `"azure"` exactly — not a custom name like `"gov-gpt"`. OpenCode has a built-in model loader for the `"azure"` provider that automatically uses the correct API format (Responses API) for newer models like Codex. If you use a custom name, the loader doesn't apply and Codex models will fail with "chatCompletion operation does not work with the specified model." Use `"whitelist"` to control which models appear in the picker.
@@ -61,12 +260,11 @@ Your Azure OpenAI resource name (the subdomain part of `your-resource.openai.azu
 
 **`"apiKey": "{env:AZURE_OPENAI_API_KEY}"`**
 References an environment variable rather than hardcoding the key. Never put API keys directly in the config file.
-- Change the env var name to match whatever variable your org uses
 
 **`"whitelist"`**
 Limits the model picker to only the models you define. Without this, you may see extra built-in Azure models from OpenCode's bundled model catalog alongside yours.
 
-**Model keys** (`"gpt-5.2"`, `"gpt-5-mini"`, `"gpt-5.3-codex"`)
+**Model keys** (`"gpt-5.2"`, `"gpt-5-mini"`, `"gpt-5.3-codex"`, `"gpt-5.4"`)
 Must exactly match your Azure deployment names. If your deployment is named differently (e.g., `"gpt52-prod"`), update the key.
 
 **`"limit": { "context": 400000, "output": 128000 }`**
@@ -74,7 +272,7 @@ Tells OpenCode the model's token limits. These are used to calculate context usa
 
 ---
 
-### Codex models (`gpt-5.3-codex`)
+## Codex Models (`gpt-5.3-codex`)
 
 Codex models require the **Responses API** (`/openai/responses`), not Chat Completions. OpenCode's built-in `azure` provider loader handles this automatically — it defaults to the Responses API for all models.
 
@@ -90,13 +288,95 @@ See also: [GitHub issue #13999](https://github.com/sst/opencode/issues/13999) fo
 
 ---
 
+## Skills
+
+Skills are reusable instruction sets that agents can load on-demand. They live in `~/.config/opencode/skills/<name>/SKILL.md`.
+
+### Included Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `azure-devops-api` | Complete REST API reference — auth, work items, WIQL, pipelines, repos, field names, error handling |
+
+### Creating Custom Skills
+
+Create a directory with a `SKILL.md` file:
+
+```
+~/.config/opencode/skills/my-skill/SKILL.md
+```
+
+Format:
+```markdown
+---
+name: my-skill
+description: What this skill does
+---
+## Content
+
+Your instructions, reference material, checklists, etc.
+```
+
+Skill ideas for your environment:
+- **deployment-checklist** — step-by-step deployment procedures
+- **code-standards** — org-specific naming conventions and patterns
+- **incident-response** — runbook for investigating production issues
+- **onboarding** — project setup guide for new team members
+
+---
+
+## Custom Commands
+
+Commands are slash-command shortcuts. They live in `~/.config/opencode/commands/<name>.md`.
+
+### Included Commands
+
+| Command | Agent | Purpose |
+|---------|-------|---------|
+| `/workitems` | devops | Query Azure DevOps work items |
+| `/review` | code-reviewer | Run a code review on changes |
+| `/test` | qa-tester | Write and run tests |
+| `/document` | scribe | Generate documentation |
+| `/security-scan` | security-auditor | Security audit |
+| `/design` | architect | Architecture analysis |
+
+### Command Syntax
+
+In the TUI, commands accept arguments after the command name:
+```
+/workitems bugs assigned to me in the current sprint
+/review src/controllers/
+/test --focus auth module
+/document API endpoints
+/security-scan the payment processing code
+/design should we use event sourcing for audit logs
+```
+
+### Creating Custom Commands
+
+```markdown
+---
+description: What this command does
+agent: which-agent       # optional: routes to a specific agent
+model: azure/gpt-5-mini  # optional: override model for this command
+---
+Prompt template here.
+
+$ARGUMENTS    # replaced with everything after the command name
+$1 $2 $3      # positional arguments
+!`git status`  # inject shell output
+@filename      # inject file content
+```
+
+---
+
 ## Outbound Network Calls
 
 OpenCode makes several outbound calls that may be blocked in restricted environments or that you may want to disable for privacy:
 
 | Domain | Purpose | Disable with |
 |---|---|---|
-| `opncd.ai` | Session sharing — sends full prompts, code, and diffs | `OPENCODE_DISABLE_SHARE=true` |
+| `opncd.ai` | Session sharing — sends full prompts, code, and diffs | `OPENCODE_DISABLE_SHARE=true` + `"share": "disabled"` |
 | `models.dev` | Model catalog fetch every 60 min | `OPENCODE_DISABLE_MODELS_FETCH=true` |
 | `registry.npmjs.org` | Update checks | `OPENCODE_DISABLE_AUTOUPDATE=true` |
 | `api.github.com` | LSP binary downloads | `OPENCODE_DISABLE_LSP_DOWNLOAD=true` |
@@ -106,34 +386,63 @@ OpenCode makes several outbound calls that may be blocked in restricted environm
 
 **On Windows AVD:** Note that Node.js uses OpenSSL, not Windows schannel — this means Node.js can reach GitHub and npm even when curl cannot (SSL inspection blocks curl but not Node). The env var flags are necessary even if curl-based tests suggest those domains are blocked.
 
+**`NO_PROXY=localhost,127.0.0.1`** is critical — OpenCode's TUI communicates with its own local HTTP server. Without this, proxy settings can break the TUI entirely.
+
 ---
 
 ## AGENTS.md Reference
 
-### Key differences from Codex AGENTS.md
+### Key Differences from Codex AGENTS.md
 
-**Compaction** — OpenCode uses LLM-based compaction (not simple truncation). When the context window fills, it sends the conversation to a summarizer and continues from the summary. However, without the [patched fork](#building-from-source-patched-fork), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost. The Session Management section addresses this.
+**Compaction** — OpenCode uses LLM-based compaction (not simple truncation). When the context window fills, it sends the conversation to a summarizer and continues from the summary. However, without the [patched fork](#building-from-source-hardened-fork), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost. The Session Management section in AGENTS.md addresses this.
 
-**Plan mode** — OpenCode's plan mode is activated with **Tab** in the composer. This switches to a read-only exploration mode where the model can look at files without making changes. Use it before any non-trivial implementation. The Codex equivalent is prompting explicitly ("explore only, don't make changes yet").
+**Plan mode** — Activated with **Tab** in the composer. Switches to a read-only exploration mode. Use before any non-trivial implementation.
 
-**`/compact`** — OpenCode's manual compaction command. Run it proactively when the context window starts getting full. This triggers LLM summarization rather than waiting for auto-compaction (which can happen mid-response).
+**`/compact`** — Manual compaction command. Run proactively when context is getting full.
 
-### Session management strategy
+### Session Management Strategy
 
-Even with compaction, long sessions can lose instruction context. These practices help:
+Even with compaction, long sessions can lose instruction context:
 
 1. **Keep sessions shorter.** Treat sessions as disposable. Start fresh often.
-2. **Session context file is your continuity.** Not a nice-to-have — it's how you carry context between sessions. The compaction summary captures what you did, but the session context file carries the full picture.
-3. **Restart, don't rescue.** When behavior degrades (shallow responses, ignoring git rules, losing project context), starting a fresh session with your context notes is dramatically more effective than trying to re-inject instructions into a degraded session.
+2. **Session context file is your continuity.** Not a nice-to-have — it's how you carry context between sessions.
+3. **Restart, don't rescue.** When behavior degrades, start fresh with context notes.
 4. **Watch the token counter.** When usage is high, wrap up or start fresh.
-5. **Use `/compact` proactively.** Don't wait for auto-compaction — triggering it manually gives you control over when summarization happens.
-6. **Use the patched fork.** The [build-from-source instructions](#building-from-source-patched-fork) describe how to run a version that preserves AGENTS.md across compaction.
+5. **Use `/compact` proactively.** Don't wait for auto-compaction.
+6. **Use the patched fork** if possible — see Building from Source below.
 
-### Reasoning coaching
+---
 
-The same coaching as the Codex AGENTS.md applies. GPT-5.2 gives the first plausible answer without self-correcting unless specifically instructed not to. The explicit "2 alternatives" and "question assumptions" requirements directly counter this. Vague instructions ("think carefully") are less effective than specific requirements.
+## Keyboard Reference
 
-OpenCode also supports an `AGENTS.md` reasoning section. Plan mode (Tab) provides a natural "think first" phase — use it before any implementation.
+| Action | Keybind |
+|--------|---------|
+| Exit | `ctrl+c`, `ctrl+d`, `<leader>q` |
+| New session | `<leader>n` |
+| List sessions | `<leader>l` |
+| Switch primary agent | `Tab` / `Shift+Tab` |
+| List agents | `<leader>a` |
+| Switch model | `<leader>m` |
+| Cycle model variant | `ctrl+t` |
+| Command palette | `ctrl+p` |
+| Compact session | `<leader>c` |
+| Undo | `<leader>u` |
+| Redo | `<leader>r` |
+| Export session | `<leader>x` |
+| Open external editor | `<leader>e` |
+| Toggle sidebar | `<leader>b` |
+| Toggle help | `<leader>h` |
+| Status view | `<leader>s` |
+| Timeline | `<leader>g` |
+| Copy messages | `<leader>y` |
+| New line in input | `Shift+Return` (requires Terminal fix) |
+| Interrupt | `Escape` |
+| Submit | `Return` |
+| Enter child session | `<leader>+Down` |
+| Next/prev child | `Right` / `Left` |
+| Return to parent | `Up` |
+
+Leader key is `ctrl+x` by default.
 
 ---
 
@@ -148,7 +457,7 @@ Two branches are available on the [fork](https://github.com/jblenman/opencode):
 
 The hardened branch bakes all security settings into the source code so they **cannot be overridden** by environment variables or config. The only outbound connection is to your configured LLM provider.
 
-### What's hardened
+### What's Hardened
 
 | Feature | Outbound target | Status in hardened build |
 |---|---|---|
@@ -162,111 +471,74 @@ The hardened branch bakes all security settings into the source code so they **c
 | Ripgrep download | GitHub | **Removed** — errors if `rg` not on PATH |
 | LLM API calls | Your Azure/provider endpoint | **Unchanged** — this is the core function |
 
-Environment variables for these features are ignored — the values are constants in the source. Each change is marked with a `HARDENED BUILD` comment explaining what was changed and how to revert.
+Environment variables for these features are ignored — the values are constants in the source.
 
-### Prerequisites
+### Windows Build Status
 
-- **Bun 1.3+** — a JavaScript/TypeScript runtime (like Node.js). MIT licensed, single binary, no background services or telemetry.
-  - macOS/Linux: `curl -fsSL https://bun.sh/install | bash`
-  - Windows: `powershell -c "irm bun.sh/install.ps1 | iex"`
-  - **Windows AVD / restricted environments:** `npm install -g bun` (avoids curl/domain issues, uses Node.js's OpenSSL which bypasses schannel restrictions)
+**Bun standalone builds do not work on Windows.** Per [OpenCode docs](https://opencode.ai/docs): "Support for installing OpenCode on Windows using Bun is currently in progress." npm builds also failed in testing (March 2026).
+
+**Current options:**
+- **Run from npm install** (`npm install -g opencode`) — uses the standard release, not the hardened fork
+- **Run from source** with `bun dev` — if Bun runtime (not build) works on your Windows version
+- **Cross-compile from macOS/Linux** — untested but theoretically possible with `bun run script/build.ts --single`
+- **WSL** — OpenCode's recommended Windows approach. Full Linux tooling, access Windows files via `/mnt/c/`
+
+### Prerequisites (if building)
+
+- **Bun 1.3+** — `npm install -g bun` (on AVD, bypasses curl/schannel issues)
 - **Git**
-- **ripgrep** — must be pre-installed on PATH (hardened build won't download it)
-  - Windows: `scoop install ripgrep` or `choco install ripgrep` or `npm install -g @vscode/ripgrep`
-  - macOS: `brew install ripgrep`
-  - Linux: `apt install ripgrep` or `dnf install ripgrep`
+- **ripgrep** — `scoop install ripgrep` or `choco install ripgrep` or `npm install -g @vscode/ripgrep`
 
 ### Clone and Build
 
 ```bash
-# Clone the hardened fork
-git clone -b hardened/federal-secure https://github.com/jblenman/opencode.git
-cd opencode
-
-# Install dependencies
-bun install
-
-# Option A: Run directly from source (dev mode)
-bun dev
-
-# Option B: Build a standalone binary for your platform
-cd packages/opencode
-bun run script/build.ts --single
-# Binary output: dist/opencode-{platform}-{arch}/bin/opencode[.exe]
-```
-
-### Install the Binary
-
-After building with `--single`, copy the binary to your PATH:
-
-```bash
-# macOS/Linux
-cp packages/opencode/dist/opencode-darwin-arm64/bin/opencode /usr/local/bin/opencode-patched
-
-# Windows (from Git Bash or PowerShell)
-cp packages/opencode/dist/opencode-windows-x64/bin/opencode.exe $HOME/bin/opencode-patched.exe
-# Or add the dist directory to your PATH
-```
-
-Use `opencode-patched` to avoid conflicting with an existing npm install of `opencode`.
-
-### Windows AVD Quick Start
-
-If you're on a government AVD with Node.js/npm already available:
-
-```powershell
-# 1. Install Bun via npm (bypasses curl/schannel issues)
-npm install -g bun
-
-# 2. Ensure ripgrep is installed
-scoop install ripgrep   # or: choco install ripgrep
-
-# 3. Clone and build
 git clone -b hardened/federal-secure https://github.com/jblenman/opencode.git
 cd opencode
 bun install
 
-# 4a. Run directly from source
+# Run from source
 bun dev
 
-# 4b. Or build a standalone binary
+# Or build standalone (not working on Windows yet)
 cd packages/opencode
 bun run script/build.ts --single
-# Copy dist/opencode-windows-x64/bin/opencode.exe to your PATH
 ```
-
-No security environment variables needed — they're baked into the source.
-
-**Note:** The `bun install` step pulls packages from `registry.npmjs.org`, which should be accessible on the AVD (Node.js uses OpenSSL, not schannel). If `github.com/jblenman/opencode` is blocked by the keyword firewall, try cloning via SSH or ask your team to whitelist it — the repo name shouldn't trigger content categorization filters.
-
-### Staying Up to Date
-
-```bash
-cd opencode
-
-# Pull latest changes from the hardened fork
-git pull origin hardened/federal-secure
-
-# Rebuild
-bun install
-cd packages/opencode && bun run script/build.ts --single
-```
-
-If the compaction PR (#16959) gets merged upstream, the hardened branch will be rebased to include future upstream changes.
-
-### Compaction Fix Details
-
-Included in both branches. Fixes AGENTS.md/CLAUDE.md instructions being lost after compaction:
-
-1. **Compaction system prompt** — passes project instructions into the compaction LLM call (was `system: []`)
-2. **Summary template** — adds "Active Project Instructions" section to capture behavioral rules
-3. **Post-compaction injection** — injects instructions as a `<system-reminder>` message after compaction
 
 ---
 
 ## Known Issues (March 2026)
 
-- **Codex models** (`gpt-5.3-codex`) require the provider key to be `"azure"` exactly — custom names (e.g., `"gov-gpt"`) don't inherit the Responses API loader and will fail. See [Codex models](#codex-models-gpt-53-codex).
-- **Instruction loss during compaction** — AGENTS.md rules are lost after compaction because the compaction summarizer runs with an empty system prompt. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959), included in both fork branches (see Building from Source above).
+- **Bun builds on Windows** — not supported yet. See Windows Build Status above.
+- **Codex models** require provider key `"azure"` exactly — custom names don't inherit the Responses API loader.
+- **Instruction loss during compaction** — AGENTS.md rules lost after compaction. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959).
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
-- **Anthropic OAuth** was removed in early 2026 — Claude requires a direct API key, not a Pro/Max subscription.
+- **`az devops` CLI** doesn't work reliably on AVD — use REST API via the devops agent and azure-devops-api skill instead.
+- **Anthropic OAuth** removed in early 2026 — Claude requires a direct API key.
+
+---
+
+## File Layout Reference
+
+```
+~/.config/opencode/
+├── opencode.json                          # Main config
+├── AGENTS.md                              # Global coaching (reasoning, git safety, etc.)
+├── agents/                                # Agent team
+│   ├── code-reviewer.md                   #   Code quality + security review
+│   ├── qa-tester.md                       #   Test writing + execution
+│   ├── scribe.md                          #   Documentation generation
+│   ├── researcher.md                      #   Codebase exploration
+│   ├── security-auditor.md                #   OWASP + vulnerability scanning
+│   ├── architect.md                       #   Design decisions + trade-offs
+│   └── devops.md                          #   Azure DevOps REST API integration
+├── skills/
+│   └── azure-devops-api/
+│       └── SKILL.md                       #   Complete DevOps REST API reference
+└── commands/
+    ├── workitems.md                       #   /workitems — query DevOps
+    ├── review.md                          #   /review — code review
+    ├── test.md                            #   /test — write + run tests
+    ├── document.md                        #   /document — generate docs
+    ├── security-scan.md                   #   /security-scan — security audit
+    └── design.md                          #   /design — architecture analysis
+```
