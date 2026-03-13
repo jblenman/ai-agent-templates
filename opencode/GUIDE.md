@@ -446,18 +446,35 @@ Leader key is `ctrl+x` by default.
 
 ---
 
-## Building from Source (Hardened Fork)
+## Pre-Built Windows Binaries
 
-Two branches are available on the [fork](https://github.com/jblenman/opencode):
+Pre-built Windows x64 binaries are available as GitHub Releases on the [fork](https://github.com/jblenman/opencode). Two versions:
 
-| Branch | What it does |
-|---|---|
-| `fix/compaction-preserve-instructions` | Compaction fix only ([PR #16959](https://github.com/anomalyco/opencode/pull/16959)) |
-| `hardened/federal-secure` | Compaction fix **+ all security flags baked in** (recommended for gov/restricted environments) |
+| Release | Branch | What it does |
+|---------|--------|--------------|
+| [Hardened Build](https://github.com/jblenman/opencode/releases/tag/hardened-build-2026-03-12) | `hardened/federal-secure` | Compaction fix **+ all security flags baked in** (recommended) |
+| [Compaction Fix Only](https://github.com/jblenman/opencode/releases/tag/compaction-fix-2026-03-12) | `fix/compaction-preserve-instructions` | Standard OpenCode with compaction fix ([PR #16959](https://github.com/anomalyco/opencode/pull/16959)) |
 
-The hardened branch bakes all security settings into the source code so they **cannot be overridden** by environment variables or config. The only outbound connection is to your configured LLM provider.
+Cross-compiled from macOS using Bun 1.3.10 targeting `bun-windows-x64`.
 
-### What's Hardened
+### Installation (Windows AVD)
+
+```powershell
+# Option 1: Download from the cloned fork repo's releases page in a browser
+# Option 2: If gh CLI is available:
+gh release download hardened-build-2026-03-12 --repo jblenman/opencode --pattern "*.zip" --dir "$HOME\Downloads"
+
+# Extract and place on PATH
+Expand-Archive "$HOME\Downloads\opencode-hardened-windows-x64.zip" -DestinationPath "$HOME\bin" -Force
+
+# Verify
+& "$HOME\bin\opencode.exe" --version
+
+# Ensure ripgrep is installed (hardened build won't download it)
+scoop install ripgrep   # or: choco install ripgrep
+```
+
+### Hardened Build — What's Changed
 
 | Feature | Outbound target | Status in hardened build |
 |---|---|---|
@@ -471,37 +488,39 @@ The hardened branch bakes all security settings into the source code so they **c
 | Ripgrep download | GitHub | **Removed** — errors if `rg` not on PATH |
 | LLM API calls | Your Azure/provider endpoint | **Unchanged** — this is the core function |
 
-Environment variables for these features are ignored — the values are constants in the source.
+Environment variables for these features are ignored — the values are constants in the source. **No security env vars needed** with the hardened build.
 
-### Windows Build Status
+The compaction-fix-only build retains all standard OpenCode behavior — you still need the `OPENCODE_DISABLE_*` env vars for restricted environments.
 
-**Bun standalone builds do not work on Windows.** Per [OpenCode docs](https://opencode.ai/docs): "Support for installing OpenCode on Windows using Bun is currently in progress." npm builds also failed in testing (March 2026).
+### Compaction Fix Details
 
-**Current options:**
-- **Run from npm install** (`npm install -g opencode`) — uses the standard release, not the hardened fork
-- **Run from source** with `bun dev` — if Bun runtime (not build) works on your Windows version
-- **Cross-compile from macOS/Linux** — untested but theoretically possible with `bun run script/build.ts --single`
-- **WSL** — OpenCode's recommended Windows approach. Full Linux tooling, access Windows files via `/mnt/c/`
+Both builds include this fix. Preserves AGENTS.md instructions across context compaction:
 
-### Prerequisites (if building)
+1. **Compaction system prompt** — passes project instructions into the compaction LLM call (was `system: []`)
+2. **Summary template** — adds "Active Project Instructions" section to capture behavioral rules
+3. **Post-compaction injection** — injects instructions as `<system-reminder>` message after compaction
 
-- **Bun 1.3+** — `npm install -g bun` (on AVD, bypasses curl/schannel issues)
-- **Git**
-- **ripgrep** — `scoop install ripgrep` or `choco install ripgrep` or `npm install -g @vscode/ripgrep`
+### Windows Build Note
 
-### Clone and Build
+**Bun standalone builds do not work natively on Windows.** Per [OpenCode docs](https://opencode.ai/docs): "Support for installing OpenCode on Windows using Bun is currently in progress." These binaries are cross-compiled from macOS.
+
+### Building from Source (macOS/Linux)
+
+If you need to rebuild (e.g., after upstream changes):
 
 ```bash
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Clone and build
 git clone -b hardened/federal-secure https://github.com/jblenman/opencode.git
 cd opencode
 bun install
-
-# Run from source
-bun dev
-
-# Or build standalone (not working on Windows yet)
 cd packages/opencode
-bun run script/build.ts --single
+bun run script/build.ts    # builds all platforms including Windows x64
+
+# Windows binary is at:
+# dist/opencode-windows-x64/bin/opencode.exe
 ```
 
 ---
