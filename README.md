@@ -102,20 +102,23 @@ Set required env vars to block unnecessary outbound calls (Windows):
 - Uses `@ai-sdk/azure` (not `openai-compatible`) — avoids the Azure URL path bug
 - `gpt-5.2` as primary, `gpt-5-mini` as fast fallback
 - Coaching for step-by-step reasoning and exploring alternatives
-- Strict git safety rules
-- Session management strategy for OpenCode's context truncation problem
+- Developer-instinct git safety rules (treat dotfolders like `.vs/`)
+- Session management strategy for OpenCode's compaction behavior
 
 ---
 
 ## Sharing instructions across tools
 
-If you use both Codex CLI and Claude Code on the same projects, you can share a single instruction file. Add to `~/.codex/config.toml`:
+All three tools can share a single `CLAUDE.md` instruction file:
 
-```toml
-project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
-```
+- **Claude Code** — reads `CLAUDE.md` natively (global: `~/.claude/CLAUDE.md`, project: `.claude/CLAUDE.md`)
+- **OpenCode** — reads `CLAUDE.md` at the project level natively. For global, add `"instructions": ["~\\.claude\\CLAUDE.md"]` to `opencode.json`
+- **Codex CLI** — add to `~/.codex/config.toml`:
+  ```toml
+  project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
+  ```
 
-Codex will pick up `.claude/CLAUDE.md` when no `AGENTS.md` exists in a project.
+OpenCode-specific features (agents, commands, skills) stay in `~/.config/opencode/` — Claude Code and Codex don't have equivalents for these.
 
 ---
 
@@ -123,9 +126,9 @@ Codex will pick up `.claude/CLAUDE.md` when no `AGENTS.md` exists in a project.
 
 Add a project-level instruction file at the repo root for project-specific context:
 
-- Codex: `AGENTS.md` or `.claude/CLAUDE.md`
-- OpenCode: `AGENTS.md`
 - Claude Code: `.claude/CLAUDE.md`
+- OpenCode: `AGENTS.md` or `CLAUDE.md` (reads both natively)
+- Codex: `AGENTS.md` or `.claude/CLAUDE.md` (with `project_doc_fallback_filenames`)
 
 ```markdown
 ## Project Context

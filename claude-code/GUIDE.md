@@ -28,7 +28,7 @@ Claude Code loads all applicable CLAUDE.md files (global + project) and merges t
 
 ## CLAUDE.md Reference
 
-CLAUDE.md is loaded into the context window at the start of every session and re-injected after context compaction — so instructions are never silently lost, unlike OpenCode.
+CLAUDE.md is loaded into the context window at the start of every session and re-injected after context compaction — so instructions are never silently lost.
 
 **Keep it concise.** Everything in CLAUDE.md costs tokens every session. Put detailed project context in project-level CLAUDE.md files, not the global one.
 
@@ -50,9 +50,9 @@ These rules prevent the most common over-engineering patterns:
 - **No backwards-compatibility shims** — if you're changing something, change it; don't leave ghost code
 - **Prefer editing over creating** — prevents file sprawl
 
-### Git section
+### Git Safety section
 
-Claude is generally much better about git safety than GPT, but explicit rules prevent edge cases. The most important: never commit without being asked (Claude can be eager to "wrap up" a task by committing).
+The rules use a developer-instinct framing rather than explicit prohibitions. The key insight: telling a model "never commit .claude/" leads to it obsessively caveating "and not the .claude folder" on every response. Instead, framing it as "treat .claude/ like .vs/ — would you think twice about committing .vs?" gets the model to internalize the principle rather than mechanically follow a rule. Claude already has good judgment here; the section mainly prevents edge cases.
 
 ### Session Context section
 
@@ -223,10 +223,10 @@ Task(
 |---|---|---|---|
 | Model | Claude (Opus/Sonnet) | GPT (OpenAI only) | Any provider |
 | Reasoning quality | Excellent natively | Needs coaching | Needs coaching |
-| Context management | Re-injects CLAUDE.md after compaction | Real compaction via Responses API | Truncates oldest messages — instructions lost |
-| Instruction file | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` |
+| Context management | Re-injects CLAUDE.md after compaction | Real compaction via Responses API | LLM-based compaction — system prompt rebuilt each loop, but conversational context can drift |
+| Instruction file | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` + `CLAUDE.md` (reads both) |
 | Config file | `settings.json` | `config.toml` | `opencode.json` |
-| Sub-agents | Built-in (Task tool) | `multi_agent` feature | Limited |
+| Sub-agents | Built-in (Task tool) | `multi_agent` feature | Custom agents (primary + subagent) |
 | Undo | No | `undo` feature (git snapshots) | `/undo` (git snapshots) |
 
 Claude Code requires the least coaching because Claude (especially Opus) already explores alternatives, self-corrects, and pushes back on bad assumptions. The CLAUDE.md here focuses on workflow preferences and code quality rules rather than compensating for reasoning deficiencies.

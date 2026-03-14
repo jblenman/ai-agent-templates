@@ -186,7 +186,7 @@ You can add more profiles for specific contexts (e.g., a `review` profile that u
 
 ## AGENTS.md Reference
 
-The coaching file loaded at session start. Codex re-injects this after context compaction, so instructions persist across long sessions (unlike OpenCode).
+The coaching file loaded at session start. Codex re-injects this after context compaction, so instructions persist across long sessions.
 
 **Key sections and why they're worded the way they are:**
 
@@ -196,11 +196,11 @@ The coaching file loaded at session start. Codex re-injects this after context c
 
 **Communication** — "State your assumption and proceed" is intentional. Constant clarification requests are friction. The model should make reasonable assumptions explicit and move forward, reserving questions for genuinely consequential decisions.
 
-**Git Safety** — These rules exist because of a real incident where GPT force-pushed a `.gitignore`d `.claude/` folder (containing auth tokens and settings) to a remote repo to literally fulfill "commit and push everything." The model lacked the judgment to distinguish "everything you'd want committed" from "everything on disk." The rules are explicit rather than principle-based because GPT needs concrete guardrails, not abstractions.
+**Git Safety** — Uses a developer-instinct framing rather than explicit prohibitions. The key insight (from a real incident where GPT force-pushed `.gitignore`d files): telling a model "never commit .claude/" leads to it obsessively caveating "and not the .claude folder" on every response. Framing it as "treat .claude/ like .vs/ — would you think twice about committing .vs?" gets the model to internalize the principle. The rules still include concrete guardrails (no force-push, always check `git status`) but lead with the intuition.
 
 **Code Quality** — Mirrors Claude Code's defaults. Prevents the common pattern of the model "improving" surrounding code, adding unnecessary abstractions, or creating files that weren't asked for.
 
-**Session Continuity** — Mainly relevant if you move to a tool with worse context management (like OpenCode). In Codex, context compaction preserves instructions, so these notes are more informational than operational.
+**Session Continuity** — Codex's context compaction preserves instructions well, so these notes are more informational than operational. The session context file is still valuable for resuming work across sessions or after interruptions.
 
 ---
 
