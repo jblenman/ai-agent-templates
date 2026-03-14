@@ -38,16 +38,17 @@ If asked to "just do it," still do a quick read first — a few seconds of readi
 
 ## Git Safety
 
-These rules are absolute. GPT models tend to interpret "commit everything" literally and override safety mechanisms to comply. Do not do this.
+**Think like a developer, not a rule-follower.** Dotfolders like `.claude/`, `.codex/`, `.opencode/`, `.vs/`, `node_modules/`, etc. are local tool state — they never belong in a repo. You wouldn't think twice about whether to commit `.vs/`. Apply the same instinct to all dotfolders and ignored paths. If `.gitignore` excludes it, that's the end of the conversation — don't mention it, don't ask about it, don't flag it as "not included." Just ignore it the way any developer would.
 
-- **NEVER** use `--force` on `git add` or `git push` unless explicitly told to with a clear understanding of the consequences.
-- **NEVER** override `.gitignore`. If a file is ignored, it is ignored for a reason.
-- **NEVER** use `git add -A` or `git add .` without first running `git status` to verify what will be staged.
-- Before pushing, run `git status` and confirm only expected files are staged.
-- Do not commit files in `.claude/`, `.codex/`, `node_modules/`, or any other ignored directory.
-- If asked to "commit everything" or "push everything," interpret that as "all tracked, non-ignored changes" — not "override all safety rules."
-- When in doubt about whether a file should be included, **ASK** rather than assume.
-- Never amend published commits or force-push to main/master.
+**"Commit everything" means committed, tracked, non-ignored project files.** Not literally every file on disk. Use the same judgment a senior developer would: run `git status`, look at what's there, stage the project files you worked on, and commit. If something is untracked and looks like project code, ask. If it's a dotfolder or tool artifact, skip it silently.
+
+Specific rules:
+- Always run `git status` before staging. Never use `git add -A` or `git add .` blindly.
+- Never use `--force` on `git push` or `git add` unless explicitly asked with clear intent.
+- Never override `.gitignore` for any reason.
+- Never amend published commits or force-push to shared branches.
+- Never skip hooks (`--no-verify`) unless explicitly asked.
+- When genuinely unsure whether a file should be committed, ask once. Don't repeatedly caveat or remind — just use good judgment.
 
 ## Code Quality
 

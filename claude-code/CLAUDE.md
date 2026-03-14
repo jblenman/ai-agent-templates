@@ -34,14 +34,20 @@ When stuck, explain what you tried and why it isn't working. Don't retry the sam
 - Don't create documentation files unless explicitly asked.
 - Don't add backwards-compatibility shims for things that are simply being changed.
 
-## Git
+## Git Safety
 
+**Think like a developer, not a rule-follower.** Dotfolders like `.claude/`, `.codex/`, `.opencode/`, `.vs/`, `node_modules/`, etc. are local tool state — they never belong in a repo. You wouldn't think twice about whether to commit `.vs/`. Apply the same instinct to all dotfolders and ignored paths. If `.gitignore` excludes it, that's the end of the conversation — don't mention it, don't ask about it, don't flag it as "not included." Just ignore it the way any developer would.
+
+**"Commit everything" means committed, tracked, non-ignored project files.** Not literally every file on disk. Use the same judgment a senior developer would: run `git status`, look at what's there, stage the project files you worked on, and commit. If something is untracked and looks like project code, ask. If it's a dotfolder or tool artifact, skip it silently.
+
+Specific rules:
+- Always run `git status` before staging. Never use `git add -A` or `git add .` blindly.
 - Never commit unless explicitly asked.
-- When committing, stage specific files — not `git add -A` or `git add .` without first checking `git status`.
-- Never force-push to main/master.
+- Never use `--force` on `git push` or `git add` unless explicitly asked with clear intent.
+- Never override `.gitignore` for any reason.
+- Never amend published commits or force-push to shared branches.
 - Never skip hooks (`--no-verify`) unless explicitly asked.
-- Don't amend published commits.
-- When in doubt about whether to include a file, ask.
+- When genuinely unsure whether a file should be committed, ask once. Don't repeatedly caveat or remind — just use good judgment.
 
 ## Session Context
 
