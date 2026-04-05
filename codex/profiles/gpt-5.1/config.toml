@@ -1,0 +1,104 @@
+# Codex CLI — GPT-5.1 Federal Profile
+# https://github.com/jblenman/ai-agent-templates
+#
+# For federal government systems with only GPT-5.1 available.
+# Less locked down than AVD but still security-conscious.
+# Drop this in ~/.codex/config.toml and update the Azure base URL.
+#
+# ⚠ TOML ORDERING: All root-level keys MUST appear before any [table] headers.
+# A key placed after a [table] header is parsed as part of that table, not the root,
+# and will be silently ignored. Keep all plain key = value lines above [sections].
+
+# ── Global ────────────────────────────────────────────────────────────────────
+model = "gpt-5.1"
+
+suppress_unstable_features_warning = true
+check_for_update_on_startup = false
+web_search = "cached"                  # routed through Azure API, not direct — safe source; 5.1 benefits from lookup ability
+approval_policy = "untrusted"          # auto-approves reads; prompts for writes/exec
+sandbox_mode = "workspace-write"       # write freely within project, read anywhere
+
+# ── Model & Reasoning — push 5.1 as hard as possible ─────────────────────────
+model_reasoning_effort = "xhigh"       # max reasoning depth (5.1 needs all the help it can get)
+model_reasoning_summary = "detailed"   # show reasoning steps so you can catch bad logic early
+model_verbosity = "high"               # detailed responses — 5.1 tends to be terse
+personality = "pragmatic"              # direct, no fluff (requires features.personality)
+
+plan_mode_reasoning_effort = "high"    # force deep thinking in plan/explore phase
+review_model = "gpt-5.1"              # only model available
+
+# ── Context — maximize what 5.1 can see ──────────────────────────────────────
+tool_output_token_limit = 25000        # conservative for 128k context — leaves room for reasoning
+project_doc_max_bytes = 65536          # read up to 64KB of AGENTS.md (coaching is critical for 5.1)
+project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
+
+# ── Outbound Privacy ─────────────────────────────────────────────────────────
+# web_search = "cached" is in Global above (goes through Azure API, not direct)
+# check_for_update_on_startup = false is in Global above
+
+[analytics]
+enabled = false
+
+[feedback]
+enabled = false
+
+# ── Local History — keep everything ──────────────────────────────────────────
+[history]
+persistence = "save-all"
+max_bytes = 209715200                  # 200MB
+
+# ── Cross-session Memory — critical for continuity with weaker model ─────────
+[memories]
+generate_memories = true
+use_memories = true
+max_rollout_age_days = 90
+max_unused_days = 60
+min_rollout_idle_hours = 6
+max_raw_memories_for_consolidation = 512
+no_memories_if_mcp_or_web_search = false
+
+# ── Features ─────────────────────────────────────────────────────────────────
+[features]
+undo = true                # git snapshot at each turn — safety net for 5.1 mistakes
+multi_agent = true         # parallel sub-agents for larger tasks
+child_agents_md = true     # CRITICAL: sub-agents inherit AGENTS.md coaching (off by default!)
+memories = true            # cross-session memory
+prevent_idle_sleep = true  # keep system awake during long tasks
+js_repl = true             # persistent Node-backed JS REPL
+request_permissions = true # model can request more FS permissions without leaving sandbox
+codex_git_commit = true    # git commit attribution guidance
+personality = true         # required for personality = "pragmatic" above
+
+# ── Shell Environment ────────────────────────────────────────────────────────
+[shell_environment_policy]
+inherit = "all"
+
+# ── TUI ──────────────────────────────────────────────────────────────────────
+[tui]
+animations = false
+show_tooltips = false
+status_line = [
+  "model-with-reasoning",
+  "context-remaining",
+  "git-branch",
+  "used-tokens",
+]
+
+# ── Profiles — quick switching with: codex --profile <name> ──────────────────
+[profiles.fast]
+model_reasoning_effort = "medium"
+approval_policy = "never"
+
+[profiles.deep]
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "detailed"
+plan_mode_reasoning_effort = "high"
+
+# ── Azure Provider ───────────────────────────────────────────────────────────
+# Replace YOUR_RESOURCE_NAME with your actual Azure resource name.
+# Codex doesn't support {env:} substitution in base_url — must be literal.
+[model_providers.azure]
+name = "Azure"
+base_url = "https://YOUR_RESOURCE_NAME.openai.azure.com/openai/v1"
+env_key = "AZURE_OPENAI_API_KEY"
+wire_api = "responses"

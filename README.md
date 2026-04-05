@@ -10,6 +10,17 @@ Configuration templates and starter files for AI coding agents.
 | [Codex CLI](codex/) | OpenAI's terminal coding agent — optimized for Claude Code-like reasoning |
 | [OpenCode](opencode/) | Provider-agnostic terminal agent — optimized for Azure AI Foundry / AVD |
 
+## Model Profiles
+
+The default configs target multi-model Azure deployments (gpt-5.2/5.3/5.4). For systems with limited model availability, use a model-specific profile instead:
+
+| Profile | Models | Environment | Location |
+|---------|--------|-------------|----------|
+| Default | gpt-5.2 / 5.3-codex / 5.4 / 5-mini | AVD (air-gapped) | `opencode/`, `codex/` |
+| [GPT-5.1](opencode/profiles/gpt-5.1/) | gpt-5.1 only | Federal (standard) | `*/profiles/gpt-5.1/` |
+
+Profiles include their own config, AGENTS.md (heavier coaching for weaker models), and setup guide. See the SETUP.md in each profile for installation instructions.
+
 ---
 
 ## Claude Code
@@ -66,6 +77,16 @@ curl -o ~/.codex/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-t
 - Analytics, feedback, and update checks disabled
 - Full local history saved
 
+### GPT-5.1 Profile
+
+For systems with only gpt-5.1 available. See [`codex/profiles/gpt-5.1/SETUP.md`](codex/profiles/gpt-5.1/SETUP.md) for full instructions.
+
+Key differences from default:
+- Model set to `gpt-5.1`, `review_model` also `gpt-5.1` (no fallback)
+- `web_search = "cached"` enabled — routed through Azure API; 5.1 benefits from lookup ability
+- `tool_output_token_limit = 25000` — conservative for 128k context window
+- AGENTS.md has heavier coaching: explicit reasoning requirements, common failure modes, security practices for federal systems
+
 ---
 
 ## OpenCode
@@ -104,6 +125,17 @@ Set required env vars to block unnecessary outbound calls (Windows):
 - Coaching for step-by-step reasoning and exploring alternatives
 - Developer-instinct git safety rules (treat dotfolders like `.vs/`)
 - Session management strategy for OpenCode's compaction behavior
+
+### GPT-5.1 Profile
+
+For systems with only gpt-5.1 available. See [`opencode/profiles/gpt-5.1/SETUP.md`](opencode/profiles/gpt-5.1/SETUP.md) for full instructions.
+
+Key differences from default:
+- Single model (`gpt-5.1`), no `small_model`
+- LSP downloads from GitHub allowed (well-known source; helps compensate for 5.1's weaker understanding)
+- Compaction reserve bumped from 10000 to 15000 (smaller context window needs more buffer)
+- AGENTS.md has heavier coaching: explicit reasoning requirements, common failure modes, mandatory plan-first workflow, security practices for federal systems
+- Agent team uses shared files but models need updating to `gpt-5.1` (setup guide includes a one-liner)
 
 ---
 

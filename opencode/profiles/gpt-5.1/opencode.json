@@ -1,0 +1,72 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "model": "azure/gpt-5.1",
+  "share": "disabled",
+  "autoupdate": false,
+
+  "disabled_providers": ["opencode"],
+
+  "provider": {
+    "azure": {
+      "npm": "@ai-sdk/azure",
+      "name": "Azure GPT",
+      "env": ["AZURE_OPENAI_API_KEY"],
+      "options": {
+        "resourceName": "YOUR_RESOURCE_NAME",
+        "apiKey": "{env:AZURE_OPENAI_API_KEY}"
+      },
+      "whitelist": ["gpt-5.1"],
+      "models": {
+        "gpt-5.1": {
+          "name": "GPT-5.1",
+          "limit": { "context": 128000, "output": 32000 }
+        }
+      }
+    }
+  },
+
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 15000
+  },
+
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "skill": "allow",
+    "todoread": "allow",
+    "todowrite": "allow",
+    "webfetch": "deny",
+    "websearch": "deny",
+    "external_directory": "ask",
+    "edit": "allow",
+    "write": "allow",
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "dotnet *": "allow",
+      "python *": "allow",
+      "node *": "allow",
+      "bun *": "allow",
+      "ls *": "allow",
+      "dir *": "allow",
+      "cat *": "allow",
+      "type *": "allow",
+      "mkdir *": "allow",
+      "cp *": "allow",
+      "copy *": "allow",
+      "mv *": "allow",
+      "move *": "allow",
+      "rm *": "ask",
+      "del *": "ask"
+    }
+  },
+
+  "instructions": ["AGENTS.md", "CONTRIBUTING.md"]
+}
