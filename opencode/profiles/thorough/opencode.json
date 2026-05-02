@@ -1,0 +1,92 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "model": "azure/gpt-5.5",
+  "small_model": "azure/gpt-5-mini",
+  "share": "disabled",
+  "autoupdate": false,
+
+  "disabled_providers": ["opencode"],
+
+  "provider": {
+    "azure": {
+      "npm": "@ai-sdk/azure",
+      "name": "Azure GPT",
+      "env": ["AZURE_OPENAI_API_KEY"],
+      "options": {
+        "resourceName": "YOUR_RESOURCE_NAME",
+        "apiKey": "{env:AZURE_OPENAI_API_KEY}"
+      },
+      "whitelist": ["gpt-5.5", "gpt-5-mini", "gpt-5.4", "gpt-5.3-codex"],
+      "models": {
+        "gpt-5.5": {
+          "name": "GPT-5.5 (thorough)",
+          "limit": { "context": 272000, "output": 128000 },
+          "options": {
+            "reasoningEffort": "high",
+            "textVerbosity": "low"
+          }
+        },
+        "gpt-5-mini": {
+          "name": "GPT-5 Mini",
+          "limit": { "context": 128000, "output": 16384 }
+        },
+        "gpt-5.4": {
+          "name": "GPT-5.4",
+          "limit": { "context": 1000000, "output": 256000 }
+        },
+        "gpt-5.3-codex": {
+          "name": "GPT-5.3 Codex",
+          "limit": { "context": 200000, "output": 128000 }
+        }
+      }
+    }
+  },
+
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "preserve_recent_tokens": 10000
+  },
+
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "skill": "allow",
+    "todoread": "allow",
+    "todowrite": "allow",
+    "webfetch": "deny",
+    "websearch": "deny",
+    "external_directory": "ask",
+    "edit": "allow",
+    "write": "allow",
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "dotnet *": "allow",
+      "python *": "allow",
+      "node *": "allow",
+      "bun *": "allow",
+      "ls *": "allow",
+      "dir *": "allow",
+      "cat *": "allow",
+      "type *": "allow",
+      "mkdir *": "allow",
+      "cp *": "allow",
+      "copy *": "allow",
+      "mv *": "allow",
+      "move *": "allow",
+      "rm *": "ask",
+      "del *": "ask",
+      "curl *dev.azure.com*": "allow",
+      "powershell*Invoke-RestMethod*dev.azure.com*": "allow",
+      "pwsh*Invoke-RestMethod*dev.azure.com*": "allow"
+    }
+  },
+
+  "instructions": ["AGENTS.md", "CONTRIBUTING.md"]
+}

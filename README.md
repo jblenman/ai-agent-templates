@@ -17,9 +17,12 @@ The default configs target multi-model Azure deployments with GPT-5.5 as the dai
 | Profile | Models | Environment | Location |
 |---------|--------|-------------|----------|
 | **Default** | **gpt-5.5 / 5-mini** (+ 5.4, 5.3-codex fallbacks) | AVD (air-gapped) | `opencode/`, `codex/` |
+| [Thorough](opencode/profiles/thorough/) | gpt-5.5 at `reasoning_effort = "high"` | Same as default; opt-in for depth-over-speed | `opencode/profiles/thorough/` |
 | [GPT-5.1](opencode/profiles/gpt-5.1/) | gpt-5.1 only | Federal (standard) | `*/profiles/gpt-5.1/` |
 
 **Why the default targets GPT-5.5:** OpenAI's prompt guidance for 5.5 inverts the playbook from earlier models — short, outcome-first AGENTS.md beats process-heavy "think step-by-step / consider alternatives" coaching, which now causes 5.5 to over-process and stop early during rollouts. The default templates use the modular Role / Goal / Success / Constraints / Output / Stop Rules structure OpenAI recommends. The GPT-5.1 profile keeps the heavier coaching for weaker models.
+
+**The Thorough profile** is for users who want depth-over-speed on the same model. It pairs the outcome-first structure (which 5.5 responds to) with explicit Investigation Requirements that force the agent to read callers, check tests, and surface cross-file impact before implementing. Use it for unfamiliar code, public-interface changes, or design-affecting work; stick with the default for routine work where per-turn latency matters more. Codex CLI users get the equivalent via `codex --profile deep`.
 
 Profiles include their own config, AGENTS.md, and setup guide. See SETUP.md in each profile for installation instructions.
 
