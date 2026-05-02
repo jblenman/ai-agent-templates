@@ -16,42 +16,47 @@ For project-specific instructions, add an `AGENTS.md` or `.claude/CLAUDE.md` at 
 
 ## config.toml Reference
 
-### Model & Reasoning
+### Model & Reasoning (GPT-5.5 tuning)
 
-**`model_reasoning_effort = "xhigh"`**
-Controls how hard the model thinks before responding. The most impactful single setting for GPT quality.
-- `"high"` is a reasonable alternative if you find `"xhigh"` noticeably slower on simple tasks
-- `"medium"` for quick/throwaway sessions — use the `fast` profile instead (see Profiles)
-- This is the primary lever for getting Claude-like exploration and self-correction out of GPT
+**`model = "gpt-5.5"`**
+The current default. GPT-5.5 (April 2026) is more efficient at reasoning than 5.4 and benefits from short, outcome-first prompts rather than process-heavy coaching. **Pricing cliff:** OpenAI charges 2× input and 1.5× output for the entire request once a single prompt crosses 272K input tokens. Stay below the cliff with `model_auto_compact_token_limit = 270000`.
 
-**`model_reasoning_summary = "detailed"`**
-Shows the model's reasoning steps in the output. Useful for understanding why it made a choice and catching bad reasoning early.
-- `"concise"` if you want a brief summary without the full chain
-- `"none"` to hide reasoning entirely (faster output, less transparency)
-- `"auto"` lets the model decide
+**`model_reasoning_effort = "medium"`**
+Per OpenAI's Codex prompting guide, `"medium"` is the explicit recommendation for interactive coding with GPT-5.5. **Higher effort can regress quality** when stopping criteria are weak or tools are open-ended ("overthinking, unnecessary searching, or output quality regressions" — quoted from the guidance). This is a behavior change from 5.2/5.4 where `xhigh` was the right default.
+- `"low"` for tool-loop / multi-step decisions where speed matters
+- `"high"` only when evals show it produces measurable wins on hard tasks
+- `"xhigh"` reserved for the absolute hardest tasks; rarely justified
+- Live-tune in TUI with `Alt+,` (lower) / `Alt+.` (higher) on Codex v0.124.0+
 
-**`model_verbosity = "high"`**
-Controls response detail level. `"high"` produces thorough explanations.
-- `"medium"` if responses feel too verbose for your workflow
-- Has less impact than `model_reasoning_effort`
+**`model_reasoning_summary = "auto"`**
+GPT-5.5 is concise by default — forcing `"detailed"` adds noise without helping much. `"auto"` lets the model decide.
+- `"detailed"` for the `deep` profile when you want to audit reasoning
+- `"none"` to hide reasoning entirely
+
+**`model_verbosity = "low"`**
+Per OpenAI's prompt guidance, `"low"` is a better starting point than the API default of `"medium"` for coding agents. The model already defaults to "more concise and direct" output on 5.5 — explicit `"low"` reinforces that.
+- `"medium"` for customer-facing prose where polish matters
 
 **`personality = "pragmatic"`**
-Sets communication style. `"pragmatic"` is direct and skips filler language. Requires `features.personality = true`.
-- `"friendly"` if you prefer a warmer tone
-- `"none"` to use the model's default
+Direct, no fluff. Requires `features.personality = true`.
+- `"friendly"` for warmer tone, useful for onboarding/ambiguous tasks per OpenAI's guidance
+- `"none"` for model default
 
 **`plan_mode_reasoning_effort = "high"`**
-Separate reasoning level for the plan/explore phase. Kept at `"high"` rather than `"xhigh"` since planning is usually read-only and you don't need maximum depth for exploration — save the heavy thinking for implementation.
-- Set to `"xhigh"` if you want maximum analysis during planning too
-- Set to `"medium"` to speed up the planning phase
+Separate reasoning level for the plan/explore phase. `"high"` rather than `"xhigh"` — planning shouldn't burn maximum reasoning when implementation does the real work.
 
 **`review_model = "gpt-5-mini"`**
-The model used when you run `/review`. Since code review doesn't require the same depth as implementation, a faster/cheaper model is usually fine here.
-- Change to your primary model if you want the same quality for reviews
+The model used by `/review`. Code review doesn't need the same depth as implementation, so a faster/cheaper model is fine.
+- Change to your primary model if you want top-quality reviews
 
 ---
 
 ### Context
+
+**`model_auto_compact_token_limit = 270000`** (NEW for GPT-5.5)
+Triggers compaction at 270K input tokens, just under OpenAI's 272K pricing cliff. Once a single prompt crosses 272K, the entire request is billed at 2× input / 1.5× output for that turn — including the 270K of conversation already there. Compacting earlier avoids the surcharge.
+- Raise to ~900000 if you genuinely need long-context retrieval and accept the cost
+- Set to `-1` to disable auto-compaction entirely (let context fill to limit)
 
 **`tool_output_token_limit = 32000`**
 How many tokens of tool output (file reads, command results) are kept in context. The default is much lower, which causes large files to be truncated before the model can fully read them.
@@ -95,10 +100,11 @@ Controls what Codex can access on the filesystem.
 **`check_for_update_on_startup = false`**
 Disables the npm registry check at startup. The check itself only sends your platform/version info (no personal data), but unnecessary outbound calls are unnecessary.
 
-**`web_search = "cached"`**
-Web search routes through the OpenAI API — your machine never connects directly to a search engine. `"cached"` uses previously fetched results where available.
-- `"live"` for always-fresh results
-- `"disabled"` to turn it off entirely if you don't want search capability
+**`web_search = "disabled"`**
+Default for Azure deployments — most Azure orgs reject `web_search_preview` ("Tool 'web_search_preview' disabled for this organization"), and a misplaced `web_search` key (after any `[table]` header) is silently ignored, leaving you stuck with that error.
+- `"cached"` for non-Azure setups — routes through OpenAI's API, uses cached results
+- `"live"` for always-fresh results (non-Azure)
+- **Must be a root-level key** (above any `[table]` header) or it's silently ignored — this is the most common config bug in Codex
 
 **`[analytics] enabled = false` / `[feedback] enabled = false`**
 Disables OpenAI usage analytics and feedback collection. Neither sends sensitive data, but there's no reason to have them on.
@@ -177,32 +183,54 @@ Disables the welcome shimmer and spinners. Cleaner, slightly faster startup.
 
 Switch profiles with `codex --profile <name>`.
 
-**`[profiles.fast]`** — lower reasoning, no approval prompts. Good for quick iterations on straightforward tasks.
-**`[profiles.deep]`** — maximum reasoning with detailed summaries. For hard problems where you want the most careful analysis.
+**`[profiles.fast]`** — `gpt-5-mini` with `low` reasoning, no approval prompts. Good for quick iterations on straightforward tasks (triage, file extraction, transforms).
+**`[profiles.deep]`** — `gpt-5.5-pro` with `high` reasoning and detailed summaries. For hard design/audit work where Pro tier earns its cost. **Note:** `"xhigh"` is no longer the default for the deep profile — per OpenAI's guidance, escalating beyond `high` rarely produces measurable wins and can regress quality. Promote to `xhigh` only with eval evidence.
 
 You can add more profiles for specific contexts (e.g., a `review` profile that uses a different model).
 
 ---
 
-## AGENTS.md Reference
+## TUI Reasoning Hotkeys (Codex v0.124.0+)
 
-The coaching file loaded at session start. Codex re-injects this after context compaction, so instructions persist across long sessions.
-
-**Key sections and why they're worded the way they are:**
-
-**Reasoning & Approach** — GPT's default behavior is to give the first plausible answer without exploring alternatives. The explicit instructions to "consider 2 alternatives" and "question assumptions" directly counter this tendency. Vague coaching ("think carefully") is less effective than specific requirements.
-
-**Explore before acting** — The numbered workflow (read → plan → implement → verify) gives the model a concrete sequence to follow rather than a general principle. The note about doing a quick read even when asked to "just do it" protects against the common failure mode of the model making changes based on incomplete understanding.
-
-**Communication** — "State your assumption and proceed" is intentional. Constant clarification requests are friction. The model should make reasonable assumptions explicit and move forward, reserving questions for genuinely consequential decisions.
-
-**Git Safety** — Uses a developer-instinct framing rather than explicit prohibitions. The key insight (from a real incident where GPT force-pushed `.gitignore`d files): telling a model "never commit .claude/" leads to it obsessively caveating "and not the .claude folder" on every response. Framing it as "treat .claude/ like .vs/ — would you think twice about committing .vs?" gets the model to internalize the principle. The rules still include concrete guardrails (no force-push, always check `git status`) but lead with the intuition.
-
-**Code Quality** — Mirrors Claude Code's defaults. Prevents the common pattern of the model "improving" surrounding code, adding unnecessary abstractions, or creating files that weren't asked for.
-
-**Session Continuity** — Codex's context compaction preserves instructions well, so these notes are more informational than operational. The session context file is still valuable for resuming work across sessions or after interruptions.
+- `Alt+,` — lower reasoning effort one step
+- `Alt+.` — raise reasoning effort one step
+- Switching models resets reasoning to the new model's default rather than preserving your last setting
 
 ---
+
+## AGENTS.md Reference
+
+The coaching file loaded at session start. Codex auto-discovers `AGENTS.md` files from repo root down to the working directory, with later directories overriding earlier ones; the model has been trained to closely adhere to these injected instructions.
+
+### Why this AGENTS.md is short
+
+Tuned for **GPT-5.5**. OpenAI's prompt guidance for 5.5 explicitly inverts the playbook from earlier models: "Shorter, outcome-first prompts usually work better than process-heavy prompt stacks." Long "think step-by-step / consider 2 alternatives / explore before acting" coaching that helped 5.2/5.4 now causes 5.5 to over-process or stop early during rollouts ("can cause the model to stop abruptly before the rollout is complete" — quoted from Codex prompting guide).
+
+For older models (5.1/5.2 deployments), the GPT-5.1 profile keeps the heavier coaching that those weaker models still benefit from.
+
+### Key sections and why they're worded the way they are
+
+**Role / Goal / Success Criteria** — Defines the destination, not the path. Lets the model choose the most efficient route. Per OpenAI: "describe what good looks like, what constraints matter, what evidence is available, and what the final answer should contain."
+
+**Constraints** — Tool preferences and code-quality rules that genuinely apply across tasks. Things like "prefer `apply_patch` over shell" matter because the model was trained specifically on `apply_patch`.
+
+**Output** — Explicit `verbosity: low`, no upfront-plan/preamble requirement, hard floor on update cadence. The "no preamble" guidance is critical: Codex prompting guide explicitly warns that prompting for status updates "can cause the model to stop abruptly before the rollout is complete."
+
+**Stop Rules** — How to know when to bail out. "Don't end the turn with only a plan" comes directly from the official Codex prompt: "Unless asked for a plan, never end the interaction with only a plan."
+
+**Git Safety** — Uses a developer-instinct framing rather than explicit prohibitions. From a real incident where GPT force-pushed `.gitignore`d files: telling a model "never commit .claude/" leads to it obsessively caveating "and not the .claude folder" on every response. Framing it as "treat .claude/ like .vs/ — would you think twice about committing .vs?" gets the model to internalize the principle. Concrete guardrails (no force-push, always check `git status`) still included but lead with the intuition.
+
+**Session Continuity** — Codex's server-side encrypted compaction (OpenAI provider) preserves instructions reliably. No instruction-loss issue like OpenCode pre-fix. The session context file is still useful for resuming across sessions.
+
+---
+
+## Recent Codex CLI Updates (Apr 2026)
+
+| Version | Date | Highlights |
+|---|---|---|
+| v0.128.0 | Apr 30 | **GPT-5.5 support** (bundled OpenAI Docs skill updated). Persisted `/goal` workflows. Expanded permission profiles. MultiAgentV2 thread caps |
+| v0.125.0 | Apr 24 | App-server Unix socket transport. Permission profiles round-trip across TUI/MCP/app-server. `codex exec --json` reports reasoning-token usage |
+| v0.124.0 | Apr 23 | **TUI quick reasoning controls: `Alt+,` lower / `Alt+.` raise.** Model upgrades reset reasoning to new model's default. First-class Bedrock support. Hooks now stable in `config.toml` |
 
 ## Per-project Setup
 
@@ -210,7 +238,8 @@ Add a `.codex/config.toml` at the repo root to override settings for that projec
 
 ```toml
 # .codex/config.toml
-model = "gpt-5.3-codex"          # different model for this project
+model = "gpt-5.5-pro"            # use Pro tier for hard design/audit work
+# or: model = "gpt-5.3-codex"    # for Codex-trained model on Azure
 sandbox_mode = "danger-full-access"
 approval_policy = "never"
 ```

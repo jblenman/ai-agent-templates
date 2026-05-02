@@ -4,6 +4,8 @@
 # Goal: Claude Code-like reasoning and autonomy, maximum local context/history/memory,
 # minimal outbound noise. Drop this in ~/.codex/config.toml and adjust to taste.
 #
+# Tuned for GPT-5.5 (May 2026). For older models, see profiles/.
+#
 # Docs: https://developers.openai.com/codex/config-reference/
 #
 # ⚠ TOML ORDERING: All root-level keys MUST appear before any [table] headers.
@@ -11,27 +13,32 @@
 # and will be silently ignored. Keep all plain key = value lines above [sections].
 
 # ── Global ────────────────────────────────────────────────────────────────────
-# Uncomment and set your model. Can be overridden per-project in .codex/config.toml
-# model = "gpt-5.2"
+model = "gpt-5.5"                      # daily driver. Override per-project in .codex/config.toml
 
 suppress_unstable_features_warning = true
 check_for_update_on_startup = false
-web_search = "cached"                  # "cached"/"live"/"disabled" — must be root-level or it's ignored
-approval_policy = "untrusted"           # auto-approves safe read-only ops; still prompts for writes/exec
+web_search = "disabled"                # Azure orgs typically reject web_search_preview anyway. Must be root-level
+approval_policy = "untrusted"          # auto-approves safe read-only ops; still prompts for writes/exec
                                        # "on-request" = model decides (asks too much)
                                        # "never" = no prompts at all (use for fully trusted sessions)
 sandbox_mode = "workspace-write"       # write freely within project, read anywhere
 
-# ── Model & Reasoning ─────────────────────────────────────────────────────────
-model_reasoning_effort = "xhigh"       # none/minimal/low/medium/high/xhigh
-model_reasoning_summary = "detailed"   # show reasoning steps in output (auto/concise/detailed/none)
-model_verbosity = "high"               # low/medium/high
+# ── Model & Reasoning (GPT-5.5 tuning) ────────────────────────────────────────
+# OpenAI's Codex prompting guide explicitly recommends "medium" for interactive coding.
+# Higher effort can REGRESS quality with weak stopping criteria or open-ended tools.
+# Live-tune in TUI with Alt+, (lower) and Alt+. (higher) on Codex v0.124.0+.
+model_reasoning_effort = "medium"      # raise to "high" only with eval evidence
+model_reasoning_summary = "auto"       # 5.5 is concise enough — no need to force "detailed"
+model_verbosity = "low"                # explicit low for coding work
 personality = "pragmatic"              # none/friendly/pragmatic — direct, no fluff
 
 plan_mode_reasoning_effort = "high"    # reasoning level during plan/explore phase
 review_model = "gpt-5-mini"            # cheaper model for the /review command
 
-# ── Context — give it as much as possible ─────────────────────────────────────
+# ── Context — capped at the 272K pricing cliff ────────────────────────────────
+# GPT-5.5 charges 2× input / 1.5× output once a single prompt crosses 272K input tokens.
+# Compact early to avoid the surcharge. Raise this only if you need the headroom.
+model_auto_compact_token_limit = 270000
 tool_output_token_limit = 32000        # more tool output kept in context (default is much lower)
 project_doc_max_bytes = 65536          # read up to 64KB of AGENTS.md
 
@@ -47,8 +54,8 @@ project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
 # ── Outbound Privacy ──────────────────────────────────────────────────────────
 # check_for_update_on_startup and web_search are set in the Global section above.
 # Azure: if you get "Tool 'web_search_preview' disabled for this organization",
-# set web_search = "disabled" in the Global section above. The key must be at
-# root level — placing it after any [table] header causes it to be silently ignored.
+# web_search = "disabled" is required at root level. Placing it after any [table]
+# header causes it to be silently ignored.
 
 [analytics]
 enabled = false
@@ -106,12 +113,13 @@ status_line = [
 # ── Profiles — quick switching with: codex --profile <name> ───────────────────
 [profiles.fast]
 # Low-friction mode for quick tasks
-model_reasoning_effort = "medium"
+model = "gpt-5-mini"
+model_reasoning_effort = "low"
 approval_policy = "never"
-# model = "gpt-5-mini"
 
 [profiles.deep]
-# Maximum reasoning for hard problems
-model_reasoning_effort = "xhigh"
+# Maximum reasoning for hard design/audit work
+model = "gpt-5.5-pro"                  # Pro tier earns its keep on hard problems
+model_reasoning_effort = "high"        # "xhigh" only with eval evidence — can regress otherwise
 model_reasoning_summary = "detailed"
 plan_mode_reasoning_effort = "high"

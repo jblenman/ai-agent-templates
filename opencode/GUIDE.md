@@ -104,22 +104,22 @@ The agent team gives you specialized subagents that the primary build agent (or 
 
 | Agent | Role | Model | Tool Access |
 |-------|------|-------|-------------|
-| **build** (built-in) | Primary coding agent | gpt-5.4 | Full |
-| **plan** (built-in) | Read-only exploration (Tab to switch) | gpt-5.4 | Read only |
-| **code-reviewer** | Reviews code for quality and security | gpt-5.4 | Read only |
-| **qa-tester** | Writes and runs tests | gpt-5.2 | Read + write + bash (test commands allowed) |
+| **build** (built-in) | Primary coding agent | gpt-5.5 | Full |
+| **plan** (built-in) | Read-only exploration (Tab to switch) | gpt-5.5 | Read only |
+| **code-reviewer** | Reviews code for quality and security | gpt-5.5 | Read only |
+| **qa-tester** | Writes and runs tests | gpt-5.5 | Read + write + bash (test commands allowed) |
 | **scribe** | Writes documentation | gpt-5-mini | Read + write (no bash) |
 | **researcher** | Explores codebase, gathers context | gpt-5-mini | Read only |
-| **security-auditor** | OWASP top 10, vulnerability scanning | gpt-5.4 | Read only |
-| **architect** | Design decisions, trade-off analysis | gpt-5.4 | Read only |
-| **devops** | Azure DevOps work items, pipelines | gpt-5.2 | Read + write + bash (API calls allowed) |
+| **security-auditor** | OWASP top 10, vulnerability scanning | gpt-5.5-pro | Read only |
+| **architect** | Design decisions, trade-off analysis | gpt-5.5-pro | Read only |
+| **devops** | Azure DevOps work items, pipelines | gpt-5.5 | Read + write + bash (API calls allowed) |
 
 ### Model Assignments Rationale
 
-- **gpt-5.4** for agents needing strong reasoning (code review, security, architecture, primary coding)
-- **gpt-5.2** for agents needing reliable execution (testing, DevOps API calls)
-- **gpt-5-mini** for agents doing text-heavy but reasoning-light work (docs, search)
-- Adjust based on your deployment availability and cost preferences
+- **gpt-5.5** for the everyday coding/review/test/devops surface — better agentic execution and shorter prompts than 5.4 needed less scaffolding
+- **gpt-5.5-pro** for agents that benefit from deeper reasoning on hard, infrequent tasks (architecture decisions, security audits) — Pro tier earns its cost here, not on routine work
+- **gpt-5-mini** for text-heavy, reasoning-light work (docs, codebase exploration)
+- Adjust based on your deployment availability and cost preferences. If 5.5-pro isn't deployed, fall back to `gpt-5.5` for those agents
 
 ### How to Use
 
@@ -223,12 +223,12 @@ Disables update checks. Pair with `OPENCODE_DISABLE_AUTOUPDATE=true` env var.
 {
     "auto": true,
     "prune": true,
-    "reserved": 10000
+    "preserve_recent_tokens": 10000
 }
 ```
 - `auto` — automatically compact when context fills up
 - `prune` — remove old tool outputs during compaction (saves tokens)
-- `reserved` — keep 10K tokens reserved for the next response
+- `preserve_recent_tokens` — keep this many tokens of recent turns verbatim during compaction. **Renamed in OpenCode v1.14.19** (was `reserved`). The old key still works as a deprecated alias.
 
 **`"permission"`**
 Granular permission rules. Last matching pattern wins.
@@ -264,11 +264,16 @@ References an environment variable rather than hardcoding the key. Never put API
 **`"whitelist"`**
 Limits the model picker to only the models you define. Without this, you may see extra built-in Azure models from OpenCode's bundled model catalog alongside yours.
 
-**Model keys** (`"gpt-5.2"`, `"gpt-5-mini"`, `"gpt-5.3-codex"`, `"gpt-5.4"`)
-Must exactly match your Azure deployment names. If your deployment is named differently (e.g., `"gpt52-prod"`), update the key.
+**Model keys** (`"gpt-5.5"`, `"gpt-5.5-pro"`, `"gpt-5-mini"`, `"gpt-5.4"`, `"gpt-5.3-codex"`)
+Must exactly match your Azure deployment names. If your deployment is named differently (e.g., `"gpt55-prod"`), update the key. **Make sure the deployment name still contains the substring `gpt`** — OpenCode's `system.ts` selects the system prompt by matching that substring; deployments without it get the aggressive 4-line `default.txt` prompt.
 
-**`"limit": { "context": 400000, "output": 128000 }`**
-Tells OpenCode the model's token limits. These are used to calculate context usage display. Set them accurately for your model version.
+**`"limit": { "context": 272000, "output": 128000 }`** (for GPT-5.5)
+Tells OpenCode the model's token limits. **Capped at 272,000** rather than the model's actual 1,050,000 because OpenAI charges 2× input and 1.5× output for the entire request once a single prompt crosses 272K input tokens. Compaction will fire well below the cap. Raise only if you genuinely need the headroom.
+
+**`"options": { "reasoningEffort": "medium", "textVerbosity": "low" }`** (GPT-5.5 only)
+Per OpenAI's prompt guidance, GPT-5.5 defaults to `medium` reasoning effort and benefits from explicit `low` verbosity for coding work. Escalating to `high` can regress quality with weak stopping criteria or open-ended tools. The `gpt-5.5-pro` model entry uses `high` since Pro is reserved for hard reasoning-heavy work.
+
+**GPT-5.5 OAuth context-limit fix:** OpenCode versions before v1.14.25 misreported GPT-5.5's context budget on OAuth-authenticated sessions (capped it at 256K = 262,144 tokens). If you've seen the model report `262144` as its limit, update OpenCode to v1.14.25 or later. GPT-5.4 doesn't expose its limit on request because it wasn't trained with that introspection — only 5.5 does.
 
 ---
 
@@ -392,11 +397,17 @@ OpenCode makes several outbound calls that may be blocked in restricted environm
 
 ## AGENTS.md Reference
 
+### Why this AGENTS.md is short
+
+The default AGENTS.md is tuned for **GPT-5.5**. OpenAI's prompt guidance for 5.5 explicitly inverts the playbook from earlier models: short, outcome-first prompts beat process-heavy stacks, and "think step-by-step / consider 2 alternatives" coaching now causes 5.5 to over-process and stop early during rollouts. The structure (Role / Goal / Success Criteria / Constraints / Output / Stop Rules) follows OpenAI's recommended modular pattern.
+
+**For older models** (gpt-5.1/5.2 deployments): use the GPT-5.1 profile, which keeps the heavier reasoning coaching that those models still benefit from.
+
 ### Key Differences from Codex AGENTS.md
 
-**Compaction** — OpenCode uses LLM-based compaction (not simple truncation). When the context window fills, it sends the conversation to a summarizer and continues from the summary. However, without the [patched fork](#building-from-source-hardened-fork), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost. The Session Management section in AGENTS.md addresses this.
+**Compaction** — OpenCode uses two-tier context management: per-turn pruning (cheap, automatic) clears old tool outputs every loop, and full LLM compaction fires only at overflow. With GPT-5.5 capped at 272K (under the 2× pricing cliff), full compaction rarely fires. Without the [patched fork](#pre-built-windows-binaries), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost on the rare occasion compaction does fire.
 
-**Plan mode** — Activated with **Tab** in the composer. Switches to a read-only exploration mode. Use before any non-trivial implementation.
+**Plan mode** — Activated with **Tab** in the composer. Switches to a read-only exploration mode. Optional with GPT-5.5 — the model handles ambiguity well without forced planning. Useful when you want to confirm scope before letting it run.
 
 **`/compact`** — Manual compaction command. Run proactively when context is getting full.
 
@@ -525,14 +536,25 @@ bun run script/build.ts    # builds all platforms including Windows x64
 
 ---
 
-## Known Issues (March 2026)
+## Recent OpenCode Updates (Apr/May 2026)
 
-- **Bun builds on Windows** — not supported yet. See Windows Build Status above.
+| Version | Date | Change |
+|---|---|---|
+| v1.14.32 | May 2 | HTTP API workspace adapter fix; unsupported image formats fall back to text reads |
+| v1.14.30 | Apr 29 | **Instruction precedence:** global instructions now apply BEFORE project/skill instructions |
+| v1.14.25 | Apr 25 | **GPT-5.5 OAuth context limits fixed** — resolves 262,144 self-reported limit |
+| v1.14.19 | Apr 20 | Compaction setting renamed: `reserved` → `preserve_recent_tokens` (old key still works) |
+| v1.14.x | Apr | **Azure prompt caching** enabled with default per-session cache key — no config needed |
+
+## Known Issues (May 2026)
+
+- **Bun builds on Windows** — not supported yet. Use cross-compiled binaries from the fork.
 - **Codex models** require provider key `"azure"` exactly — custom names don't inherit the Responses API loader.
-- **Instruction loss during compaction** — AGENTS.md rules lost after compaction. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959).
+- **Instruction loss during compaction** — AGENTS.md rules can be lost after compaction. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959). Less impactful with GPT-5.5 since compaction rarely fires under the 272K cap.
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
 - **`az devops` CLI** doesn't work reliably on AVD — use REST API via the devops agent and azure-devops-api skill instead.
 - **Anthropic OAuth** removed in early 2026 — Claude requires a direct API key.
+- **Deployment name must contain `gpt`** — OpenCode's prompt routing matches on substring; otherwise model gets the aggressive `default.txt` "fewer than 4 lines" prompt.
 
 ---
 

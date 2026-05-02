@@ -1,7 +1,7 @@
 ---
 description: Designs solutions, evaluates architecture trade-offs, reviews system design
 mode: subagent
-model: azure/gpt-5.4
+model: azure/gpt-5.5-pro
 tools:
   write: false
   edit: false

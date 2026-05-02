@@ -1,7 +1,7 @@
 ---
 description: Queries Azure DevOps work items, bugs, tasks, and pipelines via REST API
 mode: subagent
-model: azure/gpt-5.2
+model: azure/gpt-5.5
 tools:
   write: true
   edit: true
