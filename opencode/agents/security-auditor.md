@@ -1,7 +1,7 @@
 ---
 description: Scans code for security vulnerabilities, OWASP top 10, and sensitive data exposure
 mode: subagent
-model: azure/gpt-5.5-pro
+model: azure/gpt-5.5
 temperature: 0.1
 tools:
   write: false

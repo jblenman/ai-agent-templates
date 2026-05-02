@@ -16,7 +16,7 @@ The default configs target multi-model Azure deployments with GPT-5.5 as the dai
 
 | Profile | Models | Environment | Location |
 |---------|--------|-------------|----------|
-| **Default** | **gpt-5.5 / 5.5-pro / 5-mini** (+ 5.4, 5.3-codex fallbacks) | AVD (air-gapped) | `opencode/`, `codex/` |
+| **Default** | **gpt-5.5 / 5-mini** (+ 5.4, 5.3-codex fallbacks) | AVD (air-gapped) | `opencode/`, `codex/` |
 | [GPT-5.1](opencode/profiles/gpt-5.1/) | gpt-5.1 only | Federal (standard) | `*/profiles/gpt-5.1/` |
 
 **Why the default targets GPT-5.5:** OpenAI's prompt guidance for 5.5 inverts the playbook from earlier models — short, outcome-first AGENTS.md beats process-heavy "think step-by-step / consider alternatives" coaching, which now causes 5.5 to over-process and stop early during rollouts. The default templates use the modular Role / Goal / Success / Constraints / Output / Stop Rules structure OpenAI recommends. The GPT-5.1 profile keeps the heavier coaching for weaker models.
@@ -77,7 +77,7 @@ curl -o ~/.codex/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-t
 - `child_agents_md = true` — sub-agents inherit your coaching (off by default)
 - `memories = true` — cross-session memory across restarts
 - `undo = true` — git snapshot before each change, per-step rollback
-- `[profiles.deep]` swaps to `gpt-5.5-pro` with `high` reasoning for hard design/audit work
+- `[profiles.deep]` raises reasoning to `high` on the same model for hard design/audit work
 - TUI hotkeys (Codex v0.124.0+): `Alt+,` lower / `Alt+.` raise reasoning live
 - Analytics, feedback, and update checks disabled
 - Full local history saved
@@ -127,8 +127,8 @@ Set required env vars to block unnecessary outbound calls (Windows):
 ### Highlights
 
 - Uses `@ai-sdk/azure` (not `openai-compatible`) — avoids the Azure URL path bug
-- `gpt-5.5` as primary, `gpt-5.5-pro` for architect/security agents, `gpt-5-mini` as small_model fallback
-- Per-model `options.reasoningEffort` and `options.textVerbosity` — `medium` / `low` for 5.5, `high` / `low` for 5.5-pro
+- `gpt-5.5` as primary across all agents, `gpt-5-mini` as small_model fallback for background tasks
+- Per-model `options.reasoningEffort = "medium"` and `options.textVerbosity = "low"` for 5.5
 - Context limits capped at 272,000 (under OpenAI's 2× pricing cliff for prompts above that threshold)
 - AGENTS.md uses the modular outcome-first structure OpenAI recommends for 5.5 (Role / Goal / Success / Constraints / Output / Stop Rules) — no "think step-by-step" coaching that causes 5.5 to over-process
 - Developer-instinct git safety rules (treat dotfolders like `.vs/`)

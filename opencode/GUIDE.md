@@ -110,16 +110,15 @@ The agent team gives you specialized subagents that the primary build agent (or 
 | **qa-tester** | Writes and runs tests | gpt-5.5 | Read + write + bash (test commands allowed) |
 | **scribe** | Writes documentation | gpt-5-mini | Read + write (no bash) |
 | **researcher** | Explores codebase, gathers context | gpt-5-mini | Read only |
-| **security-auditor** | OWASP top 10, vulnerability scanning | gpt-5.5-pro | Read only |
-| **architect** | Design decisions, trade-off analysis | gpt-5.5-pro | Read only |
+| **security-auditor** | OWASP top 10, vulnerability scanning | gpt-5.5 | Read only |
+| **architect** | Design decisions, trade-off analysis | gpt-5.5 | Read only |
 | **devops** | Azure DevOps work items, pipelines | gpt-5.5 | Read + write + bash (API calls allowed) |
 
 ### Model Assignments Rationale
 
-- **gpt-5.5** for the everyday coding/review/test/devops surface — better agentic execution and shorter prompts than 5.4 needed less scaffolding
-- **gpt-5.5-pro** for agents that benefit from deeper reasoning on hard, infrequent tasks (architecture decisions, security audits) — Pro tier earns its cost here, not on routine work
+- **gpt-5.5** for everything except text-heavy / reasoning-light work — better agentic execution and shorter prompts than 5.4 needed less scaffolding. Each agent's specialized behavior comes from its system prompt (architect compares options, security-auditor runs OWASP checks), not from a different base model
 - **gpt-5-mini** for text-heavy, reasoning-light work (docs, codebase exploration)
-- Adjust based on your deployment availability and cost preferences. If 5.5-pro isn't deployed, fall back to `gpt-5.5` for those agents
+- If a "Pro" tier (e.g., gpt-5.5-pro) is deployed in your Azure Foundry, swap architect / security-auditor to it — Pro mainly buys a deeper reasoning budget on hard, infrequent tasks. Without it, you get most of the same benefit by raising `reasoningEffort` to `"high"` on those two agents
 
 ### How to Use
 
@@ -264,14 +263,14 @@ References an environment variable rather than hardcoding the key. Never put API
 **`"whitelist"`**
 Limits the model picker to only the models you define. Without this, you may see extra built-in Azure models from OpenCode's bundled model catalog alongside yours.
 
-**Model keys** (`"gpt-5.5"`, `"gpt-5.5-pro"`, `"gpt-5-mini"`, `"gpt-5.4"`, `"gpt-5.3-codex"`)
+**Model keys** (`"gpt-5.5"`, `"gpt-5-mini"`, `"gpt-5.4"`, `"gpt-5.3-codex"`)
 Must exactly match your Azure deployment names. If your deployment is named differently (e.g., `"gpt55-prod"`), update the key. **Make sure the deployment name still contains the substring `gpt`** — OpenCode's `system.ts` selects the system prompt by matching that substring; deployments without it get the aggressive 4-line `default.txt` prompt.
 
 **`"limit": { "context": 272000, "output": 128000 }`** (for GPT-5.5)
 Tells OpenCode the model's token limits. **Capped at 272,000** rather than the model's actual 1,050,000 because OpenAI charges 2× input and 1.5× output for the entire request once a single prompt crosses 272K input tokens. Compaction will fire well below the cap. Raise only if you genuinely need the headroom.
 
-**`"options": { "reasoningEffort": "medium", "textVerbosity": "low" }`** (GPT-5.5 only)
-Per OpenAI's prompt guidance, GPT-5.5 defaults to `medium` reasoning effort and benefits from explicit `low` verbosity for coding work. Escalating to `high` can regress quality with weak stopping criteria or open-ended tools. The `gpt-5.5-pro` model entry uses `high` since Pro is reserved for hard reasoning-heavy work.
+**`"options": { "reasoningEffort": "medium", "textVerbosity": "low" }`** (GPT-5.5)
+Per OpenAI's prompt guidance, GPT-5.5 defaults to `medium` reasoning effort and benefits from explicit `low` verbosity for coding work. Escalating to `high` can regress quality with weak stopping criteria or open-ended tools. If you deploy a Pro tier, add a separate model entry with `reasoningEffort: "high"` for it.
 
 **GPT-5.5 OAuth context-limit fix:** OpenCode versions before v1.14.25 misreported GPT-5.5's context budget on OAuth-authenticated sessions (capped it at 256K = 262,144 tokens). If you've seen the model report `262144` as its limit, update OpenCode to v1.14.25 or later. GPT-5.4 doesn't expose its limit on request because it wasn't trained with that introspection — only 5.5 does.
 

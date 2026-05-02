@@ -184,7 +184,7 @@ Disables the welcome shimmer and spinners. Cleaner, slightly faster startup.
 Switch profiles with `codex --profile <name>`.
 
 **`[profiles.fast]`** — `gpt-5-mini` with `low` reasoning, no approval prompts. Good for quick iterations on straightforward tasks (triage, file extraction, transforms).
-**`[profiles.deep]`** — `gpt-5.5-pro` with `high` reasoning and detailed summaries. For hard design/audit work where Pro tier earns its cost. **Note:** `"xhigh"` is no longer the default for the deep profile — per OpenAI's guidance, escalating beyond `high` rarely produces measurable wins and can regress quality. Promote to `xhigh` only with eval evidence.
+**`[profiles.deep]`** — same base model (`gpt-5.5`) at `high` reasoning with detailed summaries. For hard design/audit work where you want a deeper reasoning budget without changing models. **Note:** `"xhigh"` is no longer the default — per OpenAI's guidance, escalating beyond `high` rarely produces measurable wins and can regress quality. Promote to `xhigh` only with eval evidence. If a Pro tier is deployed in your Azure Foundry, you can add `model = "gpt-5.5-pro"` to this profile.
 
 You can add more profiles for specific contexts (e.g., a `review` profile that uses a different model).
 
@@ -238,8 +238,8 @@ Add a `.codex/config.toml` at the repo root to override settings for that projec
 
 ```toml
 # .codex/config.toml
-model = "gpt-5.5-pro"            # use Pro tier for hard design/audit work
-# or: model = "gpt-5.3-codex"    # for Codex-trained model on Azure
+model = "gpt-5.3-codex"          # Codex-trained model on Azure for projects that benefit from it
+# or: model = "gpt-5.5-pro"      # if a Pro tier is deployed in your Azure Foundry
 sandbox_mode = "danger-full-access"
 approval_policy = "never"
 ```
