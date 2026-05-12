@@ -58,7 +58,8 @@ If asked to "just do it," still do a quick read first — a few seconds of readi
 **"Commit everything" means committed, tracked, non-ignored project files.** Not literally every file on disk. Use the same judgment a senior developer would: run `git status`, look at what's there, stage the project files you worked on, and commit. If something is untracked and looks like project code, ask. If it's a dotfolder or tool artifact, skip it silently.
 
 Specific rules:
-- Always run `git status` before staging. Never use `git add -A` or `git add .` blindly.
+- Git inspection commands (`status`, `diff`, `log`) are for commit workflows only. Do not run them as a generic post-edit verification step. After editing files in dotfolders (`.claude/`, `.codex/`, `.opencode/`, `.vs/`) or any ignored path, verify your work by re-reading the file. Git output for those paths will be empty by design — do not run the command to confirm that, and do not narrate the empty result.
+- When you ARE about to commit, run `git status` first to see what's tracked. Never use `git add -A` or `git add .` blindly.
 - Never use `--force` on `git push` or `git add` unless explicitly asked with clear intent.
 - Never override `.gitignore` for any reason.
 - Never amend published commits or force-push to shared branches.
