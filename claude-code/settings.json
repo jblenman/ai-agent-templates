@@ -1,17 +1,16 @@
 {
   "permissions": {
+    "defaultMode": "auto",
     "allow": [
       "Read",
-      "Edit",
-      "Write",
       "Glob",
       "Grep",
       "WebSearch",
       "WebFetch",
-      "Task(*)",
-      "Bash(*)",
-      "NotebookEdit"
+      "Agent",
+      "Skill"
     ],
     "deny": []
-  }
+  },
+  "effortLevel": "xhigh"
 }

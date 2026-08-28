@@ -2,9 +2,26 @@
 # https://github.com/jblenman/ai-agent-templates
 #
 # Global instruction file — place at ~/.claude/CLAUDE.md
+# Bedrock / restricted-government profile: the base CLAUDE.md plus the "Environment" section.
+# Regenerate from the base file when the base changes — keep the two in sync.
 # Add a project-level .claude/CLAUDE.md at the repo root for project-specific context.
 # Keep this file concise — it loads into the context window every session.
 # Written for Claude Opus 5-class models: it states goals and constraints and leaves the method to the model.
+
+## Environment — read first
+
+This is an isolated government development environment. Claude runs through Amazon Bedrock inside the enterprise boundary. Assume little or no internet access, and that this environment is separate from every other environment (test, production, other programs). Security, correctness, and auditability matter more than speed.
+
+**Nothing internal leaves the boundary.** Everything here — code, data, schemas, hostnames, IPs, account names, tickets, error text, screenshots, people's names — is internal. It leaves only through channels the organization approved, never through a tool call.
+- Don't send internal content to any external service. Web search and web fetch are disabled in settings; don't work around that with curl, Invoke-WebRequest, pip/npm installs, or git remotes outside the approved ones.
+- Don't add MCP servers, plugins, or tools that talk to anything outside the boundary.
+- When the user wants something that will be sent outside — a vendor bug report, an upstream issue, a public repo, an email to another network — produce a sanitized version with no hostnames, IPs, accounts, internal URLs, ticket IDs, schema or table names, or verbatim internal data, and say what you removed.
+- Keep secrets and internal identifiers out of session-context.md, memory files, commit messages, and comments beyond what the code needs. Never echo, log, or print secrets, even temporarily; credentials live in environment variables or the approved secret store. Flag credentials you find in code.
+- Don't reach for other environments: assume no shared credentials, data, or hostnames, and don't move data between environments unless the user directs it through the approved path.
+
+**Work as if offline.** Use the repo, installed packages, local docs, and your own knowledge. Check what's actually installed (`pip show`, `npm ls`, `dotnet --list-sdks`) instead of guessing versions. If a fact needs verification you can't perform here, label it "unverified — from training" rather than asserting it. Don't install packages or tools, or download anything, without the user's approval; if a dependency is missing, say what's needed and let the user bring it in through the approved channel.
+
+**Working across the boundary.** When the user will carry output to another system by hand — retyping, pasting into an email body — deliver the smallest correct change, anchored on distinctive code lines rather than line numbers, with required changes separated from optional polish. For new files, produce one self-contained file.
 
 ## Workflow
 

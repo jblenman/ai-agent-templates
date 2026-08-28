@@ -19,6 +19,7 @@ The default configs target multi-model Azure deployments with GPT-5.5 as the dai
 | **Default** | **gpt-5.5 / 5-mini** (+ 5.4, 5.3-codex fallbacks) | AVD (air-gapped) | `opencode/`, `codex/` |
 | [Thorough](opencode/profiles/thorough/) | gpt-5.5 at `reasoning_effort = "high"` | Same as default; opt-in for depth-over-speed | `opencode/profiles/thorough/` |
 | [GPT-5.1](opencode/profiles/gpt-5.1/) | gpt-5.1 only | Federal (standard) | `*/profiles/gpt-5.1/` |
+| [Bedrock / restricted gov](claude-code/profiles/bedrock-gov/) | Claude Opus 5 via Amazon Bedrock | Isolated government dev environment (no internet, hard data boundary) | `claude-code/profiles/bedrock-gov/` |
 
 **Why the default targets GPT-5.5:** OpenAI's prompt guidance for 5.5 inverts the playbook from earlier models — short, outcome-first AGENTS.md beats process-heavy "think step-by-step / consider alternatives" coaching, which now causes 5.5 to over-process and stop early during rollouts. The default templates use the modular Role / Goal / Success / Constraints / Output / Stop Rules structure OpenAI recommends. The GPT-5.1 profile keeps the heavier coaching for weaker models.
 
@@ -34,23 +35,37 @@ Templates for [Claude Code](https://github.com/anthropics/claude-code) — Anthr
 
 | File | Purpose | Install location |
 |------|---------|-----------------|
-| [`claude-code/CLAUDE.md`](claude-code/CLAUDE.md) | Global instructions | `~/.claude/CLAUDE.md` |
-| [`claude-code/settings.json`](claude-code/settings.json) | Broad permissions (no prompts) | `~/.claude/settings.json` |
-| [`claude-code/GUIDE.md`](claude-code/GUIDE.md) | Reference — permissions, memory, hooks, image limits | — |
+| [`claude-code/CLAUDE.md`](claude-code/CLAUDE.md) | Global instructions (Opus 5-tuned) | `~/.claude/CLAUDE.md` |
+| [`claude-code/settings.json`](claude-code/settings.json) | Auto mode + read-only allow list | `~/.claude/settings.json` |
+| [`claude-code/GUIDE.md`](claude-code/GUIDE.md) | Reference — permissions, settings, memory, hooks, image limits | — |
+| [`claude-code/profiles/bedrock-gov/`](claude-code/profiles/bedrock-gov/) | Bedrock / restricted-government profile (CLAUDE.md, settings.json, SETUP.md) | see its SETUP.md |
 
 ### Quick install
 
-```bash
-mkdir -p ~/.claude
-curl -o ~/.claude/CLAUDE.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/claude-code/CLAUDE.md
-curl -o ~/.claude/settings.json https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/claude-code/settings.json
+```powershell
+$src = "$HOME\ai-agent-templates\claude-code"   # clone of this repo (private — raw URLs need a token)
+New-Item -ItemType Directory -Path "$HOME\.claude" -Force
+Copy-Item "$src\CLAUDE.md"     "$HOME\.claude\CLAUDE.md"
+Copy-Item "$src\settings.json" "$HOME\.claude\settings.json"
 ```
 
 ### Highlights
 
-- Minimal CLAUDE.md — Claude reasons well natively, so coaching focuses on workflow and code quality rather than compensating for reasoning deficiencies
-- Broad `settings.json` permissions — no approval prompts for standard operations
-- Guide covers: permission patterns, memory system, hooks, image context limits (critical gotcha)
+- CLAUDE.md written for Opus 5-class models: goals and constraints, no step choreography (current models over-plan when told to plan), explicit conciseness and scope discipline
+- Accuracy habits baked in: verified-vs-recalled, hard identifiers before acting on a guess, evidence-backed reports, plain register, incremental "top N" searches
+- `settings.json` = `defaultMode: "auto"` with only never-lossy tools pre-approved — read anything without prompts, classifier reviews edits and commands, destructive actions still confirm. No `Bash(*)` blanket allow.
+- Guide covers: permission model and why, settings keys, memory system, hook safety (`|| exit 1`), image context limits (critical gotcha)
+
+### Bedrock / restricted-government profile
+
+For an isolated government dev environment where Claude is reached only through Amazon Bedrock. See [`claude-code/profiles/bedrock-gov/SETUP.md`](claude-code/profiles/bedrock-gov/SETUP.md).
+
+Key differences from default:
+- `CLAUDE_CODE_USE_BEDROCK=1`; `opus` alias pinned to `us.anthropic.claude-opus-5[1m]` (`us-gov.` prefix in GovCloud); 1M context
+- `WebFetch` and `WebSearch` **denied** — WebSearch doesn't exist on Bedrock, and WebFetch would send each hostname to `api.anthropic.com` before fetching
+- Telemetry, error reporting, feature-flag fetches, `/feedback` `/bug` `/share`, and auto-update all off; Remote Control explicitly off; session URLs dropped from commit trailers
+- Auto mode with only `Read`/`Glob`/`Grep` pre-approved (Sonnet 5 must be enabled in the account — it runs the classifier; otherwise sessions start in Manual)
+- CLAUDE.md gains an "Environment — read first" section: nothing internal leaves the boundary, sanitize anything that will, work as if offline, no installs without approval, minimal hand-transferable diffs
 
 ---
 
