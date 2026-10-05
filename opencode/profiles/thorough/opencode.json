@@ -1,54 +1,103 @@
 {
   "$schema": "https://opencode.ai/config.json",
-
-  "model": "azure/gpt-5.5",
-  "small_model": "azure/gpt-5-mini",
+  "model": "azure/gpt-6.1-sol",
+  "small_model": "azure/gpt-5.6-luna",
   "share": "disabled",
   "autoupdate": false,
-
-  "disabled_providers": ["opencode"],
-
+  "disabled_providers": [
+    "opencode"
+  ],
   "provider": {
     "azure": {
       "npm": "@ai-sdk/azure",
       "name": "Azure GPT",
-      "env": ["AZURE_OPENAI_API_KEY"],
+      "env": [
+        "AZURE_OPENAI_API_KEY"
+      ],
       "options": {
         "resourceName": "YOUR_RESOURCE_NAME",
         "apiKey": "{env:AZURE_OPENAI_API_KEY}"
       },
-      "whitelist": ["gpt-5.5", "gpt-5-mini", "gpt-5.4", "gpt-5.3-codex"],
+      "whitelist": [
+        "gpt-6.1-sol",
+        "gpt-5.6-sol",
+        "gpt-5.6-luna",
+        "gpt-6-luna",
+        "gpt-5.5"
+      ],
       "models": {
-        "gpt-5.5": {
-          "name": "GPT-5.5 (thorough)",
-          "limit": { "context": 272000, "output": 128000 },
+        "gpt-6.1-sol": {
+          "name": "GPT-6.1 Sol",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
           "options": {
             "reasoningEffort": "high",
             "textVerbosity": "low"
           }
         },
-        "gpt-5-mini": {
-          "name": "GPT-5 Mini",
-          "limit": { "context": 128000, "output": 16384 }
+        "gpt-5.6-sol": {
+          "name": "GPT-5.6 Sol",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "options": {
+            "reasoningEffort": "high",
+            "textVerbosity": "low"
+          }
         },
-        "gpt-5.4": {
-          "name": "GPT-5.4",
-          "limit": { "context": 1000000, "output": 256000 }
+        "gpt-5.6-luna": {
+          "name": "GPT-5.6 Luna (efficient tier)",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "options": {
+            "reasoningEffort": "high",
+            "textVerbosity": "low"
+          }
         },
-        "gpt-5.3-codex": {
-          "name": "GPT-5.3 Codex",
-          "limit": { "context": 200000, "output": 128000 }
+        "gpt-6-luna": {
+          "name": "GPT-6 Luna (efficient tier)",
+          "limit": {
+            "context": 1050000,
+            "input": 922000,
+            "output": 128000
+          },
+          "options": {
+            "reasoningEffort": "high",
+            "textVerbosity": "low"
+          }
+        },
+        "gpt-5.5": {
+          "name": "GPT-5.5 (retiring)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "options": {
+            "reasoningEffort": "high",
+            "textVerbosity": "low"
+          }
         }
       }
     }
   },
-
+  "skills": {
+    "paths": [
+      "~/ai-agent-templates/skills"
+    ]
+  },
   "compaction": {
     "auto": true,
     "prune": true,
     "preserve_recent_tokens": 10000
   },
-
   "permission": {
     "read": "allow",
     "glob": "allow",
@@ -87,6 +136,8 @@
       "pwsh*Invoke-RestMethod*dev.azure.com*": "allow"
     }
   },
-
-  "instructions": ["AGENTS.md", "CONTRIBUTING.md"]
+  "instructions": [
+    "AGENTS.md",
+    "CONTRIBUTING.md"
+  ]
 }

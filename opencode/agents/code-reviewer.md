@@ -1,7 +1,7 @@
 ---
 description: Reviews code for quality, security, correctness, and best practices
 mode: subagent
-model: azure/gpt-5.5
+model: azure/gpt-6.1-sol
 temperature: 0.1
 tools:
   write: false

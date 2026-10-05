@@ -1,7 +1,7 @@
 ---
 description: Writes documentation, changelogs, release notes, and technical summaries
 mode: subagent
-model: azure/gpt-5-mini
+model: azure/gpt-5.6-luna
 tools:
   write: true
   edit: true

@@ -26,9 +26,14 @@ Copy-Item "$src\AGENTS.md" "$dst\AGENTS.md"
 mkdir -Force "$dst\agents"
 Copy-Item "$src\agents\*.md" "$dst\agents\"
 
-# Skills
+# Skills — the OpenCode-only one is copied; the shared ones (azure-cli, session-notes, kb-capture)
+# are read in place from the clone through "skills": { "paths": [...] } in opencode.json
 mkdir -Force "$dst\skills\azure-devops-api"
 Copy-Item "$src\skills\azure-devops-api\SKILL.md" "$dst\skills\azure-devops-api\SKILL.md"
+
+# Session-notes plugin (local JS plugin, auto-loaded from this folder)
+mkdir -Force "$dst\plugins"
+Copy-Item "$src\plugins\session-notes.js" "$dst\plugins\session-notes.js"
 
 # Commands
 mkdir -Force "$dst\commands"
@@ -208,8 +213,13 @@ The skill contains every endpoint pattern, WIQL query example, and field name re
 
 ### New Settings (beyond the original config)
 
-**`"small_model"`**
-A faster/cheaper model for background tasks (session titles, summaries). Set to `gpt-5-mini` to save on token costs for non-critical operations.
+**`"model"` / `"small_model"`**
+`azure/gpt-6.1-sol` and `azure/gpt-5.6-luna`. OpenAI's 2026 naming is family + tier: Sol (most capable), Terra, Luna (efficient — roughly the nano class, so a Luna-tier model is the right `small_model` for titles and summaries and the wrong daily driver). The model id is `azure/<catalog id>`; on Azure the deployment name must equal the catalog id unless you map it (`"models": { "gpt-6.1-sol": { "id": "<your-deployment-name>" } }`). Whether a deployment accepts `reasoningEffort` `xhigh`/`max` is decided by Azure, not OpenCode — if a request is rejected, lower it.
+
+**`"skills"`**
+`{ "paths": ["~/ai-agent-templates/skills"] }` adds the shared skills folder to the discovery locations; use an absolute path if `~` is not expanded on your platform.
+
+**`tui` / `keybinds` / `theme`** moved out of `opencode.json` into `tui.json` (`OPENCODE_TUI_CONFIG`); OpenCode migrates them automatically but warns.
 
 **`"share": "disabled"`**
 Explicitly disables session sharing in the config (in addition to the env var). Belt and suspenders — prevents any accidental sharing of code to `opncd.ai`.
@@ -225,6 +235,7 @@ Disables update checks. Pair with `OPENCODE_DISABLE_AUTOUPDATE=true` env var.
     "preserve_recent_tokens": 10000
 }
 ```
+(The default preserve budget is 25 % of the usable window, clamped to 2,000–15,000 tokens; 10,000 is a deliberate middle.)
 - `auto` — automatically compact when context fills up
 - `prune` — remove old tool outputs during compaction (saves tokens)
 - `preserve_recent_tokens` — keep this many tokens of recent turns verbatim during compaction. **Renamed in OpenCode v1.14.19** (was `reserved`). The old key still works as a deprecated alias.
@@ -294,13 +305,16 @@ See also: [GitHub issue #13999](https://github.com/sst/opencode/issues/13999) fo
 
 ## Skills
 
-Skills are reusable instruction sets that agents can load on-demand. They live in `~/.config/opencode/skills/<name>/SKILL.md`.
+Skills are reusable instruction sets (a folder with a `SKILL.md`) that agents load when a task matches the skill's description. OpenCode discovers them in `.opencode/skills/`, `~/.config/opencode/skills/`, `.claude/skills/`, `~/.claude/skills/`, `.agents/skills/`, `~/.agents/skills/`, plus any folder listed under `skills.paths` in `opencode.json` (`OPENCODE_DISABLE_EXTERNAL_SKILLS` drops the `.claude`/`.agents` locations; `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` just those).
 
 ### Included Skills
 
-| Skill | Purpose |
-|-------|---------|
-| `azure-devops-api` | Complete REST API reference — auth, work items, WIQL, pipelines, repos, field names, error handling |
+| Skill | Where | Purpose |
+|-------|-------|---------|
+| `azure-devops-api` | `opencode/skills/` (copied) | Complete REST API reference — auth, work items, WIQL, pipelines, repos, field names, error handling |
+| `azure-cli` | [`../skills/`](../skills/) (shared, read in place) | Login and scope first, inventory without filters, JMESPath `--query` rules, what empty results and errors mean |
+| `session-notes` | shared | What to record, when to update, the layout of the session-notes file |
+| `kb-capture` | shared | How to give a finding back to the knowledge base, in the house format |
 
 ### Creating Custom Skills
 
@@ -314,8 +328,13 @@ Format:
 ```markdown
 ---
 name: my-skill
-description: What this skill does
+description: What this skill does, in the words a person would use to ask for it
 ---
+## Content
+```
+
+The same folder layout loads in Codex CLI (`[[skills.config]]`) and Claude Code (`~/.claude/skills/`), which is why the shared ones live at the repository root.
+
 ## Content
 
 Your instructions, reference material, checklists, etc.
@@ -396,17 +415,19 @@ OpenCode makes several outbound calls that may be blocked in restricted environm
 
 ## AGENTS.md Reference
 
-### Why this AGENTS.md is short
+### Why this AGENTS.md is short — and what was added in Oct 2026
 
-The default AGENTS.md is tuned for **GPT-5.5**. OpenAI's prompt guidance for 5.5 explicitly inverts the playbook from earlier models: short, outcome-first prompts beat process-heavy stacks, and "think step-by-step / consider 2 alternatives" coaching now causes 5.5 to over-process and stop early during rollouts. The structure (Role / Goal / Success Criteria / Constraints / Output / Stop Rules) follows OpenAI's recommended modular pattern.
+The default AGENTS.md is tuned for the GPT-5.6 / GPT-6 families. OpenAI's guidance for them: leaner prompts score higher and spend far fewer tokens; state autonomy boundaries once; no "think harder" coaching; the newest models follow AGENTS.md and skills closely and pause early on contradictory instructions. OpenCode injects this file into the system prompt on every step, so nothing in it is lost at compaction.
 
-**For older models** (gpt-5.1/5.2 deployments): use the GPT-5.1 profile, which keeps the heavier reasoning coaching that those models still benefit from.
+Added in Oct 2026 after a real incident (a Luna-tier model ran `az … --query` with a malformed expression, got `[]`, and reported "your account has no access"): **Evidence Rules (tool results)** — empty is not "no access", bisect the command, quote the command and output, three different attempts before a hand-back; investigation framing in Role/Goal/Stop rules; **Session Notes**, **Knowledge Base**, **Skills** and **Azure CLI** sections that point at the shared skills and the session-notes plugin.
+
+**For older models** (gpt-5.1/5.2 deployments): use the GPT-5.1 profile, which keeps the heavier reasoning coaching those models still need, plus the same additions.
 
 ### Key Differences from Codex AGENTS.md
 
 **Compaction** — OpenCode uses two-tier context management: per-turn pruning (cheap, automatic) clears old tool outputs every loop, and full LLM compaction fires only at overflow. With GPT-5.5 capped at 272K (under the 2× pricing cliff), full compaction rarely fires. Without the [patched fork](#pre-built-windows-binaries), the compaction summarizer runs with an empty system prompt and doesn't preserve AGENTS.md rules — so instructions can still be silently lost on the rare occasion compaction does fire.
 
-**Plan mode** — Activated with **Tab** in the composer. Switches to a read-only exploration mode. Optional with GPT-5.5 — the model handles ambiguity well without forced planning. Useful when you want to confirm scope before letting it run.
+**Plan mode** — Activated with **Tab** in the composer. Switches to a read-only exploration mode. Optional with the Sol tiers — they handle ambiguity well without forced planning. Useful when you want to confirm scope before letting it run.
 
 **`/compact`** — Manual compaction command. Run proactively when context is getting full.
 
@@ -422,6 +443,8 @@ Even with compaction, long sessions can lose instruction context:
 6. **Use the patched fork** if possible — see Building from Source below.
 
 ---
+
+**Session notes, enforced (Oct 2026).** `plugins/session-notes.js` is a local plugin (drop it in `~/.config/opencode/plugins/`, no `plugin:` entry needed): on `session.created` it injects the notes file as context (`client.session.prompt` with `noReply`), on `session.idle` it sends one follow-up prompt when `~/.config/opencode/session-notes.md` (or `SESSION_NOTES`) is missing or more than 30 minutes old (one nudge per 30-minute cooldown per session, so it cannot loop), and at compaction it appends the notes rule to the compaction context (`experimental.session.compacting`). It is the OpenCode form of the Stop/PreCompact hooks the Codex and Claude Code templates use. `SESSION_NOTES_GUARD=off` disables the nudge. The plugin was checked against the plugin API types and exercised with a fake client, not in a live OpenCode session — report problems at the repository.
 
 ## Keyboard Reference
 
@@ -535,21 +558,26 @@ bun run script/build.ts    # builds all platforms including Windows x64
 
 ---
 
-## Recent OpenCode Updates (Apr/May 2026)
+## Recent OpenCode Updates (checked 2026-10-05)
 
-| Version | Date | Change |
-|---|---|---|
-| v1.14.32 | May 2 | HTTP API workspace adapter fix; unsupported image formats fall back to text reads |
-| v1.14.30 | Apr 29 | **Instruction precedence:** global instructions now apply BEFORE project/skill instructions |
-| v1.14.25 | Apr 25 | **GPT-5.5 OAuth context limits fixed** — resolves 262,144 self-reported limit |
-| v1.14.19 | Apr 20 | Compaction setting renamed: `reserved` → `preserve_recent_tokens` (old key still works) |
-| v1.14.x | Apr | **Azure prompt caching** enabled with default per-session cache key — no config needed |
+The repository moved to **github.com/anomalyco/opencode** (sst/opencode redirects; default branch `dev`). Latest release **v1.18.34 (Sep 30 2026)**, bundling `@ai-sdk/azure` 3.0.93.
 
-## Known Issues (May 2026)
+| Change | Notes |
+|---|---|
+| Models | models.dev lists the GPT-5.6 Sol/Terra/Luna, GPT-6 Astra/Sol/Luna and GPT-6.1 Sol families for both `openai` and `azure` (1.05M context, 922K input, 128K output); OpenCode offers `reasoningEffort` variants from the catalog (`low`…`max`) |
+| Config schema | `tui`, `keybinds`, `theme` moved to `tui.json`; `mode` → `agent`, `autoshare` → `share`, agent `tools` → `permission`, `maxSteps` → `steps` (deprecated, auto-migrated); new `skills.paths/urls`, `plugin[]`, `subagent_depth`, `tool_output` |
+| Plugins | local JS/TS plugins auto-load from `.opencode/plugins/` and `~/.config/opencode/plugins/`; hooks incl. `event` (`session.idle`, `session.created`, `session.compacted`…), `tool.execute.before/after`, `permission.ask`, `experimental.session.compacting`; the SDK's `session.prompt` with `noReply` injects context |
+| Instructions | project `AGENTS.md` → `CLAUDE.md`; global `~/.config/opencode/AGENTS.md` else `~/.claude/CLAUDE.md`; injected into the system prompt every step (no instruction loss at compaction) |
+| Air-gap flags | `OPENCODE_DISABLE_AUTOUPDATE`, `OPENCODE_DISABLE_MODELS_FETCH` (+ `OPENCODE_MODELS_URL`), `OPENCODE_DISABLE_LSP_DOWNLOAD`, `OPENCODE_DISABLE_DEFAULT_PLUGINS`, `OPENCODE_DISABLE_EXTERNAL_SKILLS`, `OPENCODE_PURE` / `--pure`; `share: "disabled"`; managed config dirs (`%ProgramData%\opencode`, `/etc/opencode`) |
+| V2 config | a next-generation config shape (`permissions`, `plugins`, `agents`, `compaction.keep`) exists in the source and errors on the current CLI ("run opencode2") — stay on the V1 keys used here |
+
+Earlier (Apr–May 2026): v1.14.30 instruction precedence (global before project/skill), v1.14.25 GPT-5.5 context limits, v1.14.19 `reserved` → `preserve_recent_tokens`, Azure prompt caching by default.
+
+## Known Issues (reviewed 2026-10-05)
 
 - **Bun builds on Windows** — not supported yet. Use cross-compiled binaries from the fork.
 - **Codex models** require provider key `"azure"` exactly — custom names don't inherit the Responses API loader.
-- **Instruction loss during compaction** — AGENTS.md rules can be lost after compaction. Fix: [PR #16959](https://github.com/anomalyco/opencode/pull/16959). Less impactful with GPT-5.5 since compaction rarely fires under the 272K cap.
+- **Instruction loss during compaction** — historical; the current source rebuilds the system prompt (instructions included) on every step. The hardened fork's fix ([PR #16959](https://github.com/anomalyco/opencode/pull/16959)) matters only on older builds. Less impactful anyway since compaction rarely fires under the 272K cap.
 - **`openai-compatible` provider** causes "Resource not found" on Azure — always use `@ai-sdk/azure`.
 - **`az devops` CLI** doesn't work reliably on AVD — use REST API via the devops agent and azure-devops-api skill instead.
 - **Anthropic OAuth** removed in early 2026 — Claude requires a direct API key.

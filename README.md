@@ -55,6 +55,7 @@ Copy-Item "$src\settings.json" "$HOME\.claude\settings.json"
 - Accuracy habits baked in: verified-vs-recalled, hard identifiers before acting on a guess, evidence-backed reports, plain register, incremental "top N" searches
 - `settings.json` = `defaultMode: "auto"` with only never-lossy tools pre-approved — read anything without prompts, classifier reviews edits and commands, destructive actions still confirm. No `Bash(*)` blanket allow.
 - Guide covers: permission model and why, settings keys, memory system, hook safety (`|| exit 1`), image context limits (critical gotcha)
+- Oct 2026: Evidence rules for tool results, session notes enforced by the `session-guard` plugin from [claude-code-kit](https://github.com/jblenman/claude-code-kit), the shared skills and the knowledge-base starter; `cleanupPeriodDays = 90` so transcripts outlive the default 30 days
 
 ### Bedrock / restricted-government profile
 
@@ -150,13 +151,12 @@ Set required env vars to block unnecessary outbound calls (Windows):
 ### Highlights
 
 - Uses `@ai-sdk/azure` (not `openai-compatible`) — avoids the Azure URL path bug
-- `gpt-5.5` as primary across all agents, `gpt-5-mini` as small_model fallback for background tasks
-- Per-model `options.reasoningEffort = "medium"` and `options.textVerbosity = "low"` for 5.5
-- Context limits capped at 272,000 (under OpenAI's 2× pricing cliff for prompts above that threshold)
-- AGENTS.md uses the modular outcome-first structure OpenAI recommends for 5.5 (Role / Goal / Success / Constraints / Output / Stop Rules) — no "think step-by-step" coaching that causes 5.5 to over-process
+- `azure/gpt-6.1-sol` as the daily driver (Sol tier), `azure/gpt-5.6-luna` as `small_model` and for the cheap agents; model limits from models.dev (1.05M context / 128K output)
+- Per-model `options.reasoningEffort = "medium"` (`high` for the Luna tier) and `options.textVerbosity = "low"`
+- **Evidence Rules**, Session Notes, Knowledge Base and Skills sections in AGENTS.md (same as the Codex template); the `session-notes.js` plugin enforces the notes file the way a Stop hook does elsewhere
+- Shared skills read in place via `skills.paths`; AGENTS.md keeps the modular outcome-first structure (Role / Goal / Success / Constraints / Output / Evidence / Stop Rules)
 - Developer-instinct git safety rules (treat dotfolders like `.vs/`)
 - Compaction setting uses the new `preserve_recent_tokens` key (renamed from `reserved` in OpenCode v1.14.19)
-- **Requires OpenCode v1.14.25+** for correct GPT-5.5 OAuth context limits — older versions cap at 256K and the model self-reports `262144`
 
 ### GPT-5.1 Profile
 

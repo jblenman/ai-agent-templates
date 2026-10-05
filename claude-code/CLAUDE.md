@@ -5,6 +5,8 @@
 # Add a project-level .claude/CLAUDE.md at the repo root for project-specific context.
 # Keep this file concise — it loads into the context window every session.
 # Written for Claude Opus 5-class models: it states goals and constraints and leaves the method to the model.
+# Oct 2026: evidence rules for tool results, session notes (enforced by the session-guard plugin),
+# knowledge base and skills — the same practices as the Codex and OpenCode templates.
 
 ## Workflow
 
@@ -26,6 +28,13 @@ Plain register: say what the evidence shows, how strong it is (confirmed / likel
 - A match on name-shape, location, timing, or topic is a hypothesis, not an identification. Before acting on "this X is probably that Y" — editing, deleting, sending, citing — confirm a hard identifier: exact filename, ID, hash, path, or verbatim error text. A failed check kills the hypothesis; don't invent a story that keeps it alive. Lean on these checks hardest late in a long session, when the context is nearly full.
 - Report results with evidence — test output, command output, the specific lines — not "it should work". Flag subtle correctness risks proactively and say when you're unsure.
 - For "the most recent N / first N / top N matching X": scan in the requested order in small batches and stop at N; widen only on a miss. Never pre-scan a wide window.
+
+## Evidence (tool results)
+
+- An empty result is not "no access". Before naming permission, rule out the likelier causes in order: your filter or query, the scope (subscription, tenant, resource group, branch, directory), a quiet failure (exit code, stderr, a warning, a truncated page). Permission is claimed only next to an explicit authorization error, quoted.
+- Bisect before you conclude: rerun a filtered, queried or piped command in its simplest form, then add one piece back at a time. Test a JMESPath, jq, regex or WHERE clause on a row you have already seen before trusting its empty result.
+- A claim about the environment ("not installed", "does not exist", "already configured", "the API can't") carries the command and the output line that shows it. Keep what you observed apart from what you inferred.
+- Three attempts with different suspected causes before a hand-back; the hand-back lists them and names exactly what you need from the user.
 
 ## Code Quality
 
@@ -57,16 +66,17 @@ Specific rules:
 - Never skip hooks (`--no-verify`) unless explicitly asked.
 - When genuinely unsure whether a file should be committed, ask once. Don't repeatedly caveat or remind — just use good judgment.
 
-## Session Context
+## Session Notes
 
-Maintain `~/.claude/session-context.md` to track:
-- Current task and status
-- Key decisions made — and their reasons
-- Files modified
-- What's done, in progress, and remaining
-- Any background tasks (IDs, what they're doing)
+Keep `~/.claude/session-notes.md` (or the path in `CLAUDE_SESSION_NOTES`) current: current task and status; decisions **with their reasons**; files modified; done / in progress / remaining; background tasks (ids, what they do, where their log is); the user's corrections and confirmations; exact identifiers (paths, names, commands, error text); open questions. Write as things happen, not at the end — the conversation is best-effort (it gets compacted), the file is the record a new session boots from. Update it after each significant step, **after any decision reached in discussion** (a Q&A turn that settles what will be done counts), right after a compaction, and before ending a tool-using turn while it is more than ~30 minutes stale; end such replies with one line saying what was recorded (`Notes: …`). The `session-notes` skill has the layout; the `session-guard` plugin (claude-code-kit) enforces the freshness rule with a Stop hook when installed.
 
-Write to it as things happen, not at the end. The conversation is best-effort — it gets compacted — and the file is the durable record, so the things that only exist in conversation go in first: decisions with their reasons, the user's corrections and confirmations, exact identifiers (paths, names, commands, error text), and open questions. A new session should be able to read it and resume with minimal ramp-up.
+## Knowledge Base
+
+If your instructions import a knowledge base (`@~/knowledge-base/KB.md` or a project `KB.md`), read its `kb/index.md` first and the files whose "read when" matches the task — before exploring, before discovery commands, before asking what it already answers. Give back in the same session what cost time, what was wrong and what was decided, with the `kb-capture` skill, and end the reply with a `KB:` line. Never record secrets, production or personal data, or anything your organization classifies as non-public.
+
+## Skills and Plugins
+
+Reusable procedures live in `~/.claude/skills/<name>/SKILL.md` (shared `skills/` from this repository: `azure-cli`, `session-notes`, `kb-capture`); use a skill when a task matches its description instead of improvising the procedure. Guard rails come from plugins, not from this file: `request-guard` (paced, counted web requests), `session-guard` (session-notes freshness) and `action-guard` from claude-code-kit — a refusal from a guard stands; never route around it with another tool, host or wording.
 
 ## Images
 

@@ -34,7 +34,7 @@ The thorough profile bets that on harder tasks, the time spent investigating sav
 
 ## Prerequisites
 
-- Azure AI Foundry deployment of `gpt-5.5` (and ideally `gpt-5-mini` as small_model)
+- Azure AI Foundry deployment of a Sol-tier model (`gpt-6.1-sol` or `gpt-5.6-sol`; and ideally a Luna-tier one as small_model)
 - Node.js / npm
 - ripgrep (`rg`) on PATH
 - OpenCode v1.14.25 or later (for correct GPT-5.5 OAuth context limits)
@@ -138,7 +138,7 @@ You can also raise reasoning live in the Codex TUI with `Alt+.` (v0.124.0+) for 
 
 | Aspect | Default | Thorough |
 |---|---|---|
-| Model | gpt-5.5 | gpt-5.5 (same) |
+| Model | the default (Sol tier) | the same |
 | `options.reasoningEffort` | `medium` | `high` |
 | `options.textVerbosity` | `low` | `low` (same) |
 | Investigation Requirements block | Not present | Present — explicit prescriptions for reads, grep, caller lookups |

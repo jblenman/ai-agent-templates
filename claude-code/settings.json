@@ -12,5 +12,6 @@
     ],
     "deny": []
   },
-  "effortLevel": "xhigh"
+  "effortLevel": "xhigh",
+  "cleanupPeriodDays": 90
 }

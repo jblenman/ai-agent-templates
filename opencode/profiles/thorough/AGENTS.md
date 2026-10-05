@@ -4,8 +4,8 @@
 # Global coaching file — place at ~/.config/opencode/AGENTS.md
 # Add a project-level AGENTS.md at the repo root for project-specific context.
 #
-# This is the "thorough" variant of the default GPT-5.5 profile. It pairs the
-# outcome-first modular structure (which 5.5 responds to) with explicit
+# This is the "thorough" variant of the default profile (GPT-5.6 / GPT-6 Sol tiers). It pairs the
+# outcome-first modular structure with explicit
 # Investigation Requirements that force the model to read more code, check
 # call sites, and consider impact before implementing.
 #

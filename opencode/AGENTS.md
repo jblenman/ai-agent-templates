@@ -4,11 +4,12 @@
 # Global coaching file — place at ~/.config/opencode/AGENTS.md
 # Add a project-level AGENTS.md at the repo root for project-specific context.
 #
-# Tuned for GPT-5.5 (May 2026). For older models (5.1/5.2), see profiles/.
-# OpenAI's GPT-5.5 prompt guidance favors short, outcome-first instructions —
-# this file deliberately avoids "think step-by-step / consider alternatives"
-# coaching that helped earlier models but causes 5.5 to over-process and
-# stop early during rollouts.
+# Tuned for the GPT-5.6 / GPT-6 families (Oct 2026); for GPT-5.1 see profiles/.
+# OpenAI's guidance for 5.6+: lean, outcome-first instructions, autonomy boundaries
+# stated once, no "think harder" coaching; the newest models follow AGENTS.md and
+# skills closely and pause early on contradictory instructions — audit for conflicts.
+# OpenCode rebuilds the system prompt (this file included) every step, so nothing here
+# is lost at compaction.
 
 ## Role
 

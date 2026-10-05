@@ -1,7 +1,7 @@
 ---
 description: Writes and runs tests, validates changes, reports coverage gaps
 mode: subagent
-model: azure/gpt-5.5
+model: azure/gpt-6.1-sol
 tools:
   write: true
   edit: true

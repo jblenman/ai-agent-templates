@@ -4,18 +4,26 @@ Reference for `CLAUDE.md` and `settings.json`, with reasoning behind each choice
 
 ## Installation
 
-From a clone of this repo (it's private, so raw GitHub URLs need a token — cloning is simpler):
+From a clone of this repo:
 
 ```powershell
-$src = "$HOME\ai-agent-templates\claude-code"
-New-Item -ItemType Directory -Path "$HOME\.claude" -Force
-Copy-Item "$src\CLAUDE.md"     "$HOME\.claude\CLAUDE.md"
-Copy-Item "$src\settings.json" "$HOME\.claude\settings.json"
+$src = "$HOME\ai-agent-templates"
+New-Item -ItemType Directory -Path "$HOME\.claude\skills" -Force
+Copy-Item "$src\claude-code\CLAUDE.md"     "$HOME\.claude\CLAUDE.md"
+Copy-Item "$src\claude-code\settings.json" "$HOME\.claude\settings.json"
+# shared skills (azure-cli, session-notes, kb-capture) — a copy, or a symlink/junction so `git pull` updates them
+Copy-Item "$src\skills\*" "$HOME\.claude\skills\" -Recurse -Force
 ```
 
-Both files are self-contained, so they can also be transferred by hand into an environment with no repo access.
+Then the guard plugins, from the companion marketplace [claude-code-kit](https://github.com/jblenman/claude-code-kit):
 
----
+```
+claude plugin marketplace add https://github.com/jblenman/claude-code-kit.git
+claude plugin install session-guard@claude-code-kit    # session-notes freshness (Stop/PreCompact hooks)
+claude plugin install request-guard@claude-code-kit    # paced, counted web requests
+```
+
+Optional: the [knowledge-base starter](../knowledge-base/README.md), imported from `CLAUDE.md` with `@~/knowledge-base/KB.md`. Both template files are self-contained, so they can also be transferred by hand into an environment with no repo access; the plugins need the marketplace or a copy of the kit.
 
 ## File Locations
 
@@ -68,9 +76,17 @@ Confirm before anything lossy or outward-facing, look before overwriting, and pr
 
 The rules use a developer-instinct framing rather than explicit prohibitions. Telling a model "never commit .claude/" leads to it obsessively caveating "and not the .claude folder" on every response; framing it as "treat .claude/ like .vs/ — would you think twice about committing .vs?" gets the principle internalized. Claude already has good judgment here; the section mainly prevents edge cases.
 
-### Session Context section
+### Session Notes section
 
-`~/.claude/session-context.md` is the continuity mechanism. Claude Code compacts context automatically but can be `/clear`ed, and sessions can be interrupted. The section now also says *what* to write first — decisions with reasons, user corrections, exact identifiers, open questions — because those are the things that exist only in conversation and vanish at compaction. Completed work is already in files.
+`~/.claude/session-notes.md` (or `CLAUDE_SESSION_NOTES`) is the continuity mechanism: the conversation gets compacted or `/clear`ed, the file is what a new session boots from. The section says *what* to write first — decisions with reasons, the user's corrections, exact identifiers, open questions — and *when*: after each significant step, after any decision reached in discussion, right after a compaction, and before ending a tool-using turn while the file is stale. Measured on a three-machine setup: with a Stop hook enforcing the rule (the kit's `session-guard` plugin) unprompted upkeep at wrap-up went from ≈55 % to 92 % and replies that say the record was updated from 23 % to 92 %; the hook had to block only ≈5 % of tool-using stops. Without the hook the rule is advisory — still worth keeping. The file name differs from an earlier version of this template (`session-context.md`); set `CLAUDE_SESSION_NOTES` to keep an existing file.
+
+### Evidence section
+
+Added after an incident with a small GPT model that ran an Azure CLI command with a malformed `--query`, got `[]`, and reported "your account has no access". Claude models are less prone to it, but the rule is cheap: an empty result has four likelier causes than permission, bisect the command, quote the command and output for every environment claim, three different attempts before a hand-back. The `azure-cli` skill carries the Azure-specific version.
+
+### Knowledge Base and Skills sections
+
+A small knowledge base the agent reads first and gives back to ([starter](../knowledge-base/README.md)), and reusable procedures as skills (shared [`skills/`](../skills/)). Guard rails live in plugins (claude-code-kit), and the file says that a guard's refusal stands — the one instruction that keeps a capable model from "helpfully" routing around a rate limit.
 
 ### Images section
 
@@ -145,6 +161,7 @@ Other `defaultMode` values: `default` (Manual — reads only), `acceptEdits` (ed
 
 | Setting | Purpose |
 |---------|---------|
+| `cleanupPeriodDays` | Days to keep session transcripts (default 30). The transcripts are the evidence for any later audit of what sessions did; 90 keeps a quarter. |
 | `effortLevel` | Persisted effort (`low`–`xhigh`; `max` is session-only via `/effort max`). `xhigh` is Claude Code's coding default; pinning it prevents a silent downgrade. |
 | `model` | Default model or alias (`opus`, `sonnet`); on Bedrock the alias resolves through `ANTHROPIC_DEFAULT_OPUS_MODEL` etc. |
 | `env` | Environment variables applied to every session — the right place for provider switches and kill-switches you don't want leaking to other processes. |
@@ -190,44 +207,36 @@ For detailed notes, create separate topic files and link to them from MEMORY.md.
 
 ## Hooks
 
-Claude Code hooks let scripts run at lifecycle events, injecting context or blocking actions.
+Claude Code hooks run scripts at lifecycle events; they can inject context or block actions. Configure them in `settings.json` or ship them in a plugin's `hooks/hooks.json` — **never both for the same hook, it runs twice**. The kit's `session-guard` and `request-guard` plugins are the worked examples.
 
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py /path/to/script.py || exit 1",
-            "timeout": 10
-          }
-        ]
-      }
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/notes_guard.py\" stop || exit 1", "timeout": 20 } ] }
     ]
   }
 }
 ```
 
-### Hook events
+### Hook events (verified on CLI 2.1.283–2.1.289)
 
-| Event | When | Can inject context | Can block |
-|-------|------|--------------------|-----------|
-| `SessionStart` | Session starts/resumes | Yes | No |
-| `UserPromptSubmit` | User sends a prompt | Yes (stdout) | Yes (exit 2) |
-| `PreToolUse` | Before tool call | Yes | Yes (exit 2) |
-| `PostToolUse` | After tool call | Yes | No |
-| `Notification` | System notifications | Yes | No |
-| `Stop` | Claude finishes responding | No | Yes |
+| Event | When | Output that matters |
+|-------|------|---------------------|
+| `SessionStart` | start / resume / clear / compact (matcher) | stdout text or `hookSpecificOutput.additionalContext` → context |
+| `UserPromptSubmit` | the user sends a prompt | stdout → context; `{"decision":"block","reason":…}` or exit 2 blocks the prompt |
+| `PreToolUse` | before a tool call (matcher = tool name) | `hookSpecificOutput.permissionDecision` allow/deny/ask with a reason; exit 2 + stderr = deny |
+| `PostToolUse` / `PostToolUseFailure` | after a tool call | `decision: block` feeds the reason back to the model; context via `additionalContext` |
+| `PermissionRequest` | before a permission prompt | allow/deny decision |
+| `Stop` / `SubagentStop` | the turn is about to end | `{"decision":"block","reason":…}` continues the turn once (`stop_hook_active` is true on the second pass) |
+| `PreCompact` / `PostCompact` | around compaction (matcher: manual / auto) | PreCompact can block a manual compaction |
+| `SessionEnd`, `Notification` | end of session; notifications | logging only |
 
-- Stdout from hook commands is injected into the conversation as context
-- Exit code `2` blocks the action; exit `0` allows it; any other non-zero code is a non-blocking error
-- **Always end a hook command with `|| exit 1`.** A hook that fails with exit 2 — which is what an interpreter that can't find its script or is denied file access tends to produce — blocks every prompt and locks the session out. `|| exit 1` turns any failure into a logged, non-blocking error.
-- Call interpreters by launcher (`py`, `python3`), not a hard-coded install path; hard-coded paths break on the next runtime upgrade
-- `UserPromptSubmit` fires on every message — use a cooldown to avoid overhead
-
----
+- One JSON object arrives on stdin (`session_id`, `transcript_path`, `cwd`, `hook_event_name`, tool fields); one JSON object on stdout carries the decision. Exit 0 allows; exit 2 blocks (stderr = reason); other non-zero codes are non-blocking errors.
+- **Always end a hook command with `|| exit 1`.** An interpreter that cannot find its script or is denied file access tends to exit 2 — which blocks every prompt and locks the session out. `|| exit 1` turns that into a non-blocking error; the script itself decides when to exit 2.
+- Call interpreters by launcher (`py`, `python3`), not a hard-coded install path. On Windows, a Store/PyManager alias can be denied to other logon sessions (hooks then fail open); a real `python.exe` path or an `env` variable in `settings.json` (`"env": {"KIT_PYTHON": "..."}`, read as `${KIT_PYTHON:-python3}` in the command) avoids it.
+- `UserPromptSubmit` fires on every message — keep it cheap or add a cooldown.
+- Codex CLI has the same hook contract since 2026 (see the Codex guide), so one guard script can serve both.
 
 ## Image Context Warning
 
@@ -251,12 +260,13 @@ Agent(
 
 | | Claude Code | Codex CLI | OpenCode |
 |---|---|---|---|
-| Model | Claude (Opus 5 / Sonnet 5 / Fable 5) via Anthropic API, Bedrock, Vertex, or Foundry | GPT (OpenAI only) | Any provider |
-| Reasoning quality | Excellent natively | Needs coaching | Needs coaching |
+| Model | Claude (Fable 5.1 / Opus 5.5 / Sonnet 5) via Anthropic API, Bedrock, Vertex, or Foundry | GPT (OpenAI, Azure OpenAI) | Any provider |
+| Reasoning quality | Excellent natively | Depends on the tier (Sol vs Luna); needs evidence rules | Depends on the model; needs evidence rules |
 | Context management | 1M window on current models; re-injects CLAUDE.md after compaction | Real compaction via Responses API | LLM-based compaction — system prompt rebuilt each loop, but conversational context can drift |
 | Instruction file | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` + `CLAUDE.md` (reads both) |
 | Config file | `settings.json` | `config.toml` | `opencode.json` |
 | Sub-agents | Built-in (Agent tool) | `multi_agent` feature | Custom agents (primary + subagent) |
+| Hooks / skills / plugins | hooks, skills, plugin marketplaces | hooks (same contract), skills, plugins (2026) | plugins (JS), skills |
 | Undo | No | `undo` feature (git snapshots) | `/undo` (git snapshots) |
 
 Claude Code requires the least coaching because Claude (especially Opus) already explores alternatives, self-corrects, and pushes back on bad assumptions. The CLAUDE.md here focuses on outcomes, constraints, and accuracy habits rather than compensating for reasoning deficiencies.

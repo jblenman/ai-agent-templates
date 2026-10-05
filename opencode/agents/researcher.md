@@ -1,7 +1,7 @@
 ---
 description: Explores codebases, gathers context, reads docs, and summarizes findings
 mode: subagent
-model: azure/gpt-5-mini
+model: azure/gpt-5.6-luna
 tools:
   write: false
   edit: false

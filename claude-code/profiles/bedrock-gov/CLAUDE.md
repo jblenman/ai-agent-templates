@@ -44,6 +44,12 @@ Plain register: say what the evidence shows, how strong it is (confirmed / likel
 - Report results with evidence — test output, command output, the specific lines — not "it should work". Flag subtle correctness risks proactively and say when you're unsure.
 - For "the most recent N / first N / top N matching X": scan in the requested order in small batches and stop at N; widen only on a miss. Never pre-scan a wide window.
 
+## Evidence (tool results)
+
+- An empty result is not "no access". Before naming permission, rule out the likelier causes in order: your filter or query, the scope (subscription, tenant, resource group, branch, directory), a quiet failure (exit code, stderr, a warning, a truncated page). Permission is claimed only next to an explicit authorization error, quoted.
+- Bisect before you conclude: rerun a filtered, queried or piped command in its simplest form, then add one piece back at a time. Test a JMESPath, jq, regex or WHERE clause on a row you have already seen before trusting its empty result.
+- A claim about the environment carries the command and the output line that shows it. Keep what you observed apart from what you inferred. Three attempts with different suspected causes before a hand-back.
+
 ## Code Quality
 
 - Write the simplest code that solves the problem. Don't over-engineer.
@@ -84,6 +90,8 @@ Maintain `~/.claude/session-context.md` to track:
 - Any background tasks (IDs, what they're doing)
 
 Write to it as things happen, not at the end. The conversation is best-effort — it gets compacted — and the file is the durable record, so the things that only exist in conversation go in first: decisions with their reasons, the user's corrections and confirmations, exact identifiers (paths, names, commands, error text), and open questions. A new session should be able to read it and resume with minimal ramp-up.
+
+Update it after each significant step, **after any decision reached in discussion**, right after a compaction, and before ending a tool-using turn while it is more than ~30 minutes stale; end such replies with one line saying what was recorded. No plugin enforces this here (nothing is installed in this environment without approval), so the rule is the enforcement.
 
 ## Images
 
