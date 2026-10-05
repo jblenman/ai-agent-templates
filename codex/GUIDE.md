@@ -18,7 +18,9 @@ Then, in Codex: `/hooks` once to review and trust the three session-notes hooks 
 
 For project-specific instructions, add an `AGENTS.md` (or `.claude/CLAUDE.md`) at the repo root; Codex concatenates the chain from the Git root to the working directory.
 
-Windows (PowerShell): the same copies with `$HOME\.codex\…`; `hooks.json` already carries `commandWindows` entries that use the `py` launcher.
+Windows (PowerShell): the same copies with `$HOME\.codex\…`. `hooks.json` carries `commandWindows` entries of the form `py -c "import os,runpy; runpy.run_path(os.path.expanduser('~/.codex/hooks/session_notes.py'), run_name='__main__')" stop` — Python resolves `~` itself, so the command works whichever shell Codex uses to start it (a `%USERPROFILE%` form fails under PowerShell). If `py` is a Store/PyManager alias on the machine, replace it with the full path of a real `python.exe`.
+
+**If a hook fails:** run it by hand to see the real error — `'{"session_id":"t","hook_event_name":"SessionStart"}' | py "$HOME\.codex\hooks\session_notes.py" session-start` should print a JSON line; check `/hooks` in the TUI (trust state and the last failure per hook); and look at Codex's log under `~/.codex/log/`. A hook that errors is reported and skipped — it never stops the session — but a skipped `Stop` hook means the notes file is no longer enforced.
 
 ## config.toml Reference
 
