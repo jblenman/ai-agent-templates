@@ -1,59 +1,46 @@
 # Codex CLI — Configuration Guide
 
-Reference for `config.toml` and `AGENTS.md` settings, with reasoning behind each choice and alternatives.
+Reference for `config.toml`, `AGENTS.md`, the hooks, skills and the knowledge-base starter, with the reasoning behind each choice. Checked against the Codex 0.160 config reference on 2026-10-05.
 
 ## Installation
 
 ```bash
-mkdir -p ~/.codex
-curl -o ~/.codex/config.toml https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/codex/config.toml
-curl -o ~/.codex/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/codex/AGENTS.md
+git clone https://github.com/jblenman/ai-agent-templates ~/ai-agent-templates
+mkdir -p ~/.codex/hooks
+cp ~/ai-agent-templates/codex/config.toml      ~/.codex/config.toml
+cp ~/ai-agent-templates/codex/AGENTS.md        ~/.codex/AGENTS.md
+cp ~/ai-agent-templates/codex/hooks.json       ~/.codex/hooks.json
+cp ~/ai-agent-templates/codex/hooks/session_notes.py ~/.codex/hooks/
+cp ~/ai-agent-templates/codex/profiles/*.config.toml ~/.codex/
 ```
 
-For project-specific instructions, add an `AGENTS.md` or `.claude/CLAUDE.md` at the repo root.
+Then, in Codex: `/hooks` once to review and trust the three session-notes hooks (Codex skips untrusted hooks and warns at startup). The skills (`azure-cli`, `session-notes`, `kb-capture`) are referenced from the clone by `[[skills.config]]` in `config.toml` — adjust the paths if the clone lives elsewhere. Optional: the knowledge base starter in [`../knowledge-base/`](../knowledge-base/README.md).
 
----
+For project-specific instructions, add an `AGENTS.md` (or `.claude/CLAUDE.md`) at the repo root; Codex concatenates the chain from the Git root to the working directory.
+
+Windows (PowerShell): the same copies with `$HOME\.codex\…`; `hooks.json` already carries `commandWindows` entries that use the `py` launcher.
 
 ## config.toml Reference
 
-### Model & Reasoning (GPT-5.5 tuning)
+### Model & Reasoning
 
-**`model = "gpt-5.5"`**
-The current default. GPT-5.5 (April 2026) is more efficient at reasoning than 5.4 and benefits from short, outcome-first prompts rather than process-heavy coaching. **Pricing cliff:** OpenAI charges 2× input and 1.5× output for the entire request once a single prompt crosses 272K input tokens. Stay below the cliff with `model_auto_compact_token_limit = 270000`.
+**`model = "gpt-6.1-sol"`**
+OpenAI's 2026 naming is *family* + *tier*: GPT-5.6 (Jul 2026), GPT-6 (Sep 2026), GPT-6.1 (Sep 2026) in tiers **Sol** (most capable), **Terra** (balanced) and **Luna** (efficient, high-volume — OpenAI describes it as roughly the nano tier; in Codex it replaced `gpt-5.4-mini`). `gpt-6.1-sol` is Codex's own default since 0.159; GPT-5.5 is retired from Codex on Oct 14 2026. On Azure, `model` is your **deployment name** — ask for a Sol-tier deployment for agentic work. A Luna-only environment should use the `luna` profile (below): the model is small, and no config setting makes a small model investigate like a large one; the AGENTS.md evidence rules do most of the work there.
 
 **`model_reasoning_effort = "medium"`**
-Per OpenAI's Codex prompting guide, `"medium"` is the explicit recommendation for interactive coding with GPT-5.5. **Higher effort can regress quality** when stopping criteria are weak or tools are open-ended ("overthinking, unnecessary searching, or output quality regressions" — quoted from the guidance). This is a behavior change from 5.2/5.4 where `xhigh` was the right default.
-- `"low"` for tool-loop / multi-step decisions where speed matters
-- `"high"` only when evals show it produces measurable wins on hard tasks
-- `"xhigh"` reserved for the absolute hardest tasks; rarely justified
-- Live-tune in TUI with `Alt+,` (lower) / `Alt+.` (higher) on Codex v0.124.0+
+A free-form level whose allowed values depend on the model: the 5.6/6.x Sol and Luna tiers accept `none` (Luna) / `low` / `medium` / `high` / `xhigh` / `max`; `ultra` is GPT-6 Astra only. `medium` is the documented default for the capable tiers. Raising it does not fix shallow tool-result interpretation (an empty query taken for "no access") — that is a prompting problem, fixed in AGENTS.md. Live-tune with `Alt+,` / `Alt+.`.
+- `high` as the floor for a Luna-tier model (the `luna` profile)
+- `xhigh` for the `deep` profile (design, audits, debugging)
 
-**`model_reasoning_summary = "auto"`**
-GPT-5.5 is concise by default — forcing `"detailed"` adds noise without helping much. `"auto"` lets the model decide.
-- `"detailed"` for the `deep` profile when you want to audit reasoning
-- `"none"` to hide reasoning entirely
+**`model_reasoning_summary = "auto"`**, **`model_verbosity = "low"`**, **`plan_mode_reasoning_effort = "high"`** — unchanged; 5.6+ is concise by default, so `low` verbosity rarely needs raising.
 
-**`model_verbosity = "low"`**
-Per OpenAI's prompt guidance, `"low"` is a better starting point than the API default of `"medium"` for coding agents. The model already defaults to "more concise and direct" output on 5.5 — explicit `"low"` reinforces that.
-- `"medium"` for customer-facing prose where polish matters
+**`review_model`** now defaults to the session model; set a cheaper deployment only if `/review` cost matters.
 
-**`personality = "pragmatic"`**
-Direct, no fluff. Requires `features.personality = true`.
-- `"friendly"` for warmer tone, useful for onboarding/ambiguous tasks per OpenAI's guidance
-- `"none"` for model default
-
-**`plan_mode_reasoning_effort = "high"`**
-Separate reasoning level for the plan/explore phase. `"high"` rather than `"xhigh"` — planning shouldn't burn maximum reasoning when implementation does the real work.
-
-**`review_model = "gpt-5-mini"`**
-The model used by `/review`. Code review doesn't need the same depth as implementation, so a faster/cheaper model is fine.
-- Change to your primary model if you want top-quality reviews
-
----
+**`personality`** — the schema marks the `friendly`/`pragmatic` styles deprecated; the config no longer sets it (tone lives in AGENTS.md → Output).
 
 ### Context
 
-**`model_auto_compact_token_limit = 270000`** (NEW for GPT-5.5)
+**`model_auto_compact_token_limit`** (now unset; it was 270000 for GPT-5.5)
 Triggers compaction at 270K input tokens, just under OpenAI's 272K pricing cliff. Once a single prompt crosses 272K, the entire request is billed at 2× input / 1.5× output for that turn — including the 270K of conversation already there. Compacting earlier avoids the surcharge.
 - Raise to ~900000 if you genuinely need long-context retrieval and accept the cost
 - Set to `-1` to disable auto-compaction entirely (let context fill to limit)
@@ -77,23 +64,10 @@ If no `AGENTS.md` exists in a project, Codex checks these filenames instead. Thi
 
 ### Approval & Sandbox
 
-**`approval_policy = "untrusted"`**
-Controls when Codex asks for permission before running commands.
-- `"untrusted"` — auto-approves known safe read-only commands; still prompts for anything that writes or executes. Best default: reads never interrupt you, destructive ops still require approval
-- `"on-request"` — model decides when to ask. Tends to ask constantly, even for reads
-- `"never"` — never asks; failures are returned to the model. Use for fully trusted sessions or the `fast` profile
+**`approval_policy = "on-request"`**
+`untrusted` — the value this file recommended until Oct 2026 — is **no longer supported** (Codex 0.160 rejects it), and `on-failure` is deprecated. Current values: `on-request` (interactive), `never` (non-interactive, failures go back to the model), or `{ granular = { sandbox_approval, rules, mcp_elicitations, request_permissions, skill_approval } }` to allow or auto-reject specific prompt categories. `approvals_reviewer = "auto_review"` hands eligible prompts to a reviewer subagent instead of the user.
 
-**`sandbox_mode = "workspace-write"`**
-Controls what Codex can access on the filesystem.
-- `"workspace-write"` — can read anywhere, write within the project directory. Good default balance
-- `"danger-full-access"` — unrestricted filesystem access. Use per-project in `.codex/config.toml` for trusted repos, or via `codex --yolo` for a single session
-- `"read-only"` — can only read; useful for pure exploration or review tasks
-
-> **Session-level overrides:**
-> - `codex --full-auto` — workspace-write + on-request approvals, no config change needed
-> - `codex --yolo` — bypasses all approvals and sandbox for the session
-
----
+**`sandbox_mode = "workspace-write"`** — `read-only` | `workspace-write` | `danger-full-access`, unchanged. Session overrides: `codex --full-auto`, `codex --yolo`.
 
 ### Outbound Privacy
 
@@ -129,34 +103,17 @@ Cross-session memory subsystem. Generates summaries of sessions and injects them
 
 ### Features
 
-**`undo = true`**
-Creates a git snapshot before each change, enabling `codex undo` to roll back. Essential safety net.
-- Uses `[ghost_snapshot]` config for tuning (see schema for options)
+**`hooks = true`** — lifecycle hooks from `~/.codex/hooks.json` (or inline `[hooks]`; one representation per layer). This repository ships three: `SessionStart` hands the session-notes file to the model, `Stop` continues the turn once while the notes are stale or missing, `PreCompact` records the compaction so the next stop writes the durable parts. Review and trust them once with `/hooks`; Codex re-asks when a hook definition changes. (`features.codex_hooks` is the deprecated alias.)
 
-**`multi_agent = true`**
-Enables spawning parallel sub-agents for larger tasks. The model can break work into parallel streams.
-- Control thread limits with `[agents] max_threads` and `max_depth`
+**`undo = true`** — git snapshot before each change, `codex undo` to roll back.
+**`multi_agent = true`** — sub-agents inherit model, effort, sandbox, MCP servers and skills from the parent. *There is no `child_agents_md` setting* (older copies of this file claimed one); whether sub-agents receive the AGENTS.md chain is not documented — put the rules that must reach them into a skill the parent passes on.
+**`memories = true`** — enables `[memories]`; it is the tool's summary for itself, while the session-notes file is the record the user reads.
+**`prevent_idle_sleep = true`** (experimental), **`request_permissions = true`**, **`codex_git_commit = true`** — unchanged.
+Removed: `js_repl` (a retired switch, rejected under Work Cloud), `features.web_search*` (use the top-level `web_search`), `personality`.
 
-**`child_agents_md = true`**
-**Critical.** Without this, sub-agents do not inherit your AGENTS.md coaching — they start completely unconfigured. Off by default.
+### Skills
 
-**`memories = true`**
-Required to enable the `[memories]` subsystem above.
-
-**`prevent_idle_sleep = true`**
-Prevents the system from sleeping while Codex is actively running a task. Useful for long overnight jobs.
-
-**`js_repl = true`**
-Enables a persistent Node.js REPL the model can use for calculations, data transformation, and scripting tasks without spawning a full shell. Requires Node.js installed.
-- Set a per-call timeout with a first-line pragma: `// codex-js-repl: timeout_ms=15000`
-
-**`request_permissions = true`**
-Allows the model to request additional filesystem permissions mid-session without fully leaving the sandbox. More flexible than either a hard sandbox or full access.
-
-**`codex_git_commit = true`**
-Adds git commit attribution guidance to the model's instructions, encouraging better commit messages and attribution practices.
-
----
+A skill is a folder with a `SKILL.md` (name + description + the procedure). Codex selects one when the task matches its description, or you invoke it with `$name`. `[[skills.config]]` entries in `config.toml` register folders from anywhere on disk, so the shared [`../skills/`](../skills/) folder is used in place. `skills.max_context_tokens` caps the catalog shown to the model (default 2 % of the context window). Newer models follow skills closely and pause on contradictory ones — keep skills consistent with AGENTS.md.
 
 ### Shell Environment
 
@@ -181,14 +138,15 @@ Disables the welcome shimmer and spinners. Cleaner, slightly faster startup.
 
 ### Profiles
 
-Switch profiles with `codex --profile <name>`.
+**Profiles are separate files since Codex 0.134.** `codex --profile deep` loads `~/.codex/config.toml`, then overlays `~/.codex/deep.config.toml`; the overlay holds only the keys that differ. A `[profiles.name]` table in `config.toml` and the `profile = "name"` selector are ignored by current versions.
 
-**`[profiles.fast]`** — `gpt-5-mini` with `low` reasoning, no approval prompts. Good for quick iterations on straightforward tasks (triage, file extraction, transforms).
-**`[profiles.deep]`** — same base model (`gpt-5.5`) at `high` reasoning with detailed summaries. For hard design/audit work where you want a deeper reasoning budget without changing models. **Note:** `"xhigh"` is no longer the default — per OpenAI's guidance, escalating beyond `high` rarely produces measurable wins and can regress quality. Promote to `xhigh` only with eval evidence. If a Pro tier is deployed in your Azure Foundry, you can add `model = "gpt-5.5-pro"` to this profile.
+| File | Use | What it changes |
+|---|---|---|
+| `profiles/deep.config.toml` | hard design, audit, debugging | `model_reasoning_effort = "xhigh"`, detailed summaries |
+| `profiles/fast.config.toml` | triage, extraction, transforms | a Luna-tier model at `low`, no approval prompts |
+| `profiles/luna.config.toml` | an environment that only has a Luna-tier deployment | `model = "gpt-5.6-luna"`, `high` effort, concise summaries |
 
-You can add more profiles for specific contexts (e.g., a `review` profile that uses a different model).
-
----
+The GPT-5.1 federal profile under `profiles/gpt-5.1/` is a full config for that environment (not an overlay).
 
 ## TUI Reasoning Hotkeys (Codex v0.124.0+)
 
@@ -202,11 +160,17 @@ You can add more profiles for specific contexts (e.g., a `review` profile that u
 
 The coaching file loaded at session start. Codex auto-discovers `AGENTS.md` files from repo root down to the working directory, with later directories overriding earlier ones; the model has been trained to closely adhere to these injected instructions.
 
-### Why this AGENTS.md is short
+### Why this AGENTS.md is short — and what the Oct 2026 additions are for
 
-Tuned for **GPT-5.5**. OpenAI's prompt guidance for 5.5 explicitly inverts the playbook from earlier models: "Shorter, outcome-first prompts usually work better than process-heavy prompt stacks." Long "think step-by-step / consider 2 alternatives / explore before acting" coaching that helped 5.2/5.4 now causes 5.5 to over-process or stop early during rollouts ("can cause the model to stop abruptly before the rollout is complete" — quoted from Codex prompting guide).
+OpenAI's guidance for GPT-5.6 and GPT-6: leaner prompts score higher and spend fewer tokens; state autonomy boundaries once; do not ask the model to "think harder"; the newest models are *more* sensitive to instructions in AGENTS.md and skills and will pause early on contradictory ones. So this file stays short and is audited for conflicts.
 
-For older models (5.1/5.2 deployments), the GPT-5.1 profile keeps the heavier coaching that those weaker models still benefit from.
+Four sections were added in Oct 2026 after a real incident (a Luna-tier model ran an Azure CLI command with a malformed `--query`, got `[]`, and reported "your account has no access"):
+
+- **Initiative** — OpenAI's own persistence pattern in plain words: bias toward action, persist to the intended goal, come back with a reviewable result, boundaries stated once.
+- **Evidence Rules (tool results)** — the rule the incident lacked: an empty result has four likelier causes than permission; bisect a filtered command back to its simplest form; read exit code and stderr; every environment claim quotes the command and the output line; three *different* attempts before a hand-back; verified vs inferred kept apart.
+- **Session Notes / Knowledge Base / Skills** — the practices from a multi-machine Claude Code setup, made tool-agnostic: a notes file a new session boots from (enforced by the hooks), a small knowledge base the agent reads first and gives back to, and reusable procedures as skills.
+
+For GPT-5.1, `profiles/gpt-5.1/AGENTS.md` keeps the heavier reasoning coaching that model needs, plus the same four sections.
 
 ### Key sections and why they're worded the way they are
 
@@ -224,13 +188,18 @@ For older models (5.1/5.2 deployments), the GPT-5.1 profile keeps the heavier co
 
 ---
 
-## Recent Codex CLI Updates (Apr 2026)
+## Recent Codex CLI Updates (Oct 2026)
 
-| Version | Date | Highlights |
-|---|---|---|
-| v0.128.0 | Apr 30 | **GPT-5.5 support** (bundled OpenAI Docs skill updated). Persisted `/goal` workflows. Expanded permission profiles. MultiAgentV2 thread caps |
-| v0.125.0 | Apr 24 | App-server Unix socket transport. Permission profiles round-trip across TUI/MCP/app-server. `codex exec --json` reports reasoning-token usage |
-| v0.124.0 | Apr 23 | **TUI quick reasoning controls: `Alt+,` lower / `Alt+.` raise.** Model upgrades reset reasoning to new model's default. First-class Bedrock support. Hooks now stable in `config.toml` |
+| Version / date | Highlights |
+|---|---|
+| 0.160.1 (Oct 5 2026) | current stable |
+| 0.159.1 (Sep 29) | **GPT-6.1 Sol** is the default model |
+| 0.156.1 (Sep 22) | GPT-6 Sol and GPT-6 Luna available |
+| Jul 31 | `gpt-5.6-luna` replaces `gpt-5.4-mini` as the small model; GPT-5.5 scheduled to retire from Codex Oct 14 2026 |
+| 0.134.0 | `[profiles.*]` tables retired — profiles are `~/.codex/<name>.config.toml` overlays |
+| 0.124.0 (Apr 23) | `Alt+,` / `Alt+.` reasoning hotkeys; hooks stable in `config.toml` |
+
+Source: https://developers.openai.com/codex/changelog and the config reference, checked 2026-10-05.
 
 ## Per-project Setup
 
@@ -238,8 +207,7 @@ Add a `.codex/config.toml` at the repo root to override settings for that projec
 
 ```toml
 # .codex/config.toml
-model = "gpt-5.3-codex"          # Codex-trained model on Azure for projects that benefit from it
-# or: model = "gpt-5.5-pro"      # if a Pro tier is deployed in your Azure Foundry
+model = "gpt-6.1-sol"            # or the Azure deployment name of a Sol-tier model
 sandbox_mode = "danger-full-access"
 approval_policy = "never"
 ```

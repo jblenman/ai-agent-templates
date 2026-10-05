@@ -1,0 +1,45 @@
+{
+  "description": "Session-notes hooks: hand the notes to the model at start, continue a turn once while the notes are stale or missing, remember compactions. Requires features.hooks = true in config.toml and a one-time trust via /hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/hooks/session_notes.py\" session-start",
+            "commandWindows": "py \"%USERPROFILE%\\.codex\\hooks\\session_notes.py\" session-start",
+            "statusMessage": "Loading session notes",
+            "additionalContextLimit": 6000,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/hooks/session_notes.py\" pre-compact",
+            "commandWindows": "py \"%USERPROFILE%\\.codex\\hooks\\session_notes.py\" pre-compact",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/hooks/session_notes.py\" stop",
+            "commandWindows": "py \"%USERPROFILE%\\.codex\\hooks\\session_notes.py\" stop",
+            "statusMessage": "Checking session notes",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

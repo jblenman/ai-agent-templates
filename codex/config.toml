@@ -1,61 +1,51 @@
 # Codex CLI — Recommended config.toml
 # https://github.com/jblenman/ai-agent-templates
 #
-# Goal: Claude Code-like reasoning and autonomy, maximum local context/history/memory,
-# minimal outbound noise. Drop this in ~/.codex/config.toml and adjust to taste.
+# Goal: Claude Code-like autonomy with evidence discipline, a session record that survives,
+# maximum local context/history/memory, minimal outbound noise. Drop this in ~/.codex/config.toml.
 #
-# Tuned for GPT-5.5 (May 2026). For older models, see profiles/.
+# Checked against the config reference for Codex CLI 0.160 (2026-10-05):
+#   https://developers.openai.com/codex/config-reference  (+ config-advanced, config-schema.json)
+# Keys that older copies of this file used and that no longer exist or are unsupported:
+#   [profiles.*] tables (retired in 0.134 — profiles are files, see the bottom), approval_policy = "untrusted",
+#   features.child_agents_md (never existed), features.js_repl (retired), features.web_search (use the top-level key).
 #
-# Docs: https://developers.openai.com/codex/config-reference/
-#
-# ⚠ TOML ORDERING: All root-level keys MUST appear before any [table] headers.
-# A key placed after a [table] header is parsed as part of that table, not the root,
-# and will be silently ignored. Keep all plain key = value lines above [sections].
+# ⚠ TOML ORDERING: all root-level keys MUST appear before any [table] header. A key placed after
+# a [table] header belongs to that table and is silently ignored.
 
-# ── Global ────────────────────────────────────────────────────────────────────
-model = "gpt-5.5"                      # daily driver. Override per-project in .codex/config.toml
+# ── Model ─────────────────────────────────────────────────────────────────────
+# OpenAI's 2026 naming: a family (5.6, 6, 6.1) and a tier — Sol = most capable, Terra = balanced,
+# Luna = efficient/high-volume ("roughly the nano tier"; in Codex it replaced gpt-5.4-mini). Codex's own
+# default is gpt-6.1-sol (0.159+). On Azure the value is your deployment name; ask for a Sol-tier
+# deployment for agentic work. If only a Luna-tier deployment exists, use the `luna` profile below:
+# it is a small model and needs a higher reasoning effort plus the evidence rules in AGENTS.md.
+model = "gpt-6.1-sol"
 
 suppress_unstable_features_warning = true
 check_for_update_on_startup = false
-web_search = "disabled"                # Azure orgs typically reject web_search_preview anyway. Must be root-level
-approval_policy = "untrusted"          # auto-approves safe read-only ops; still prompts for writes/exec
-                                       # "on-request" = model decides (asks too much)
-                                       # "never" = no prompts at all (use for fully trusted sessions)
-sandbox_mode = "workspace-write"       # write freely within project, read anywhere
+web_search = "disabled"                # disabled | cached | indexed | live. Azure orgs usually reject the
+                                       # web_search tool anyway. Root-level key — see the ordering note.
+approval_policy = "on-request"         # on-request | never | { granular = {...} }. "untrusted" is no longer
+                                       # supported, "on-failure" is deprecated. "never" for non-interactive runs.
+sandbox_mode = "workspace-write"       # read-only | workspace-write | danger-full-access
 
-# ── Model & Reasoning (GPT-5.5 tuning) ────────────────────────────────────────
-# OpenAI's Codex prompting guide explicitly recommends "medium" for interactive coding.
-# Higher effort can REGRESS quality with weak stopping criteria or open-ended tools.
-# Live-tune in TUI with Alt+, (lower) and Alt+. (higher) on Codex v0.124.0+.
-model_reasoning_effort = "medium"      # raise to "high" only with eval evidence
-model_reasoning_summary = "auto"       # 5.5 is concise enough — no need to force "detailed"
-model_verbosity = "low"                # explicit low for coding work
-personality = "pragmatic"              # none/friendly/pragmatic — direct, no fluff
+# ── Reasoning ─────────────────────────────────────────────────────────────────
+# Levels depend on the model: Sol/Luna 5.6 and 6.x accept none|low|medium|high|xhigh|max (Luna adds none,
+# Ultra is Astra-only). "medium" is the documented default for the capable tiers; a higher level does not
+# fix shallow investigation — the AGENTS.md evidence rules do. Live-tune in the TUI: Alt+, / Alt+.
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"       # auto | concise | detailed | none
+model_verbosity = "low"                # low | medium | high (Responses API)
+plan_mode_reasoning_effort = "high"    # reasoning level for the plan/explore phase
+# review_model defaults to the session model; set a cheaper one for /review if you want:
+# review_model = "gpt-6-luna"
 
-plan_mode_reasoning_effort = "high"    # reasoning level during plan/explore phase
-review_model = "gpt-5-mini"            # cheaper model for the /review command
-
-# ── Context — capped at the 272K pricing cliff ────────────────────────────────
-# GPT-5.5 charges 2× input / 1.5× output once a single prompt crosses 272K input tokens.
-# Compact early to avoid the surcharge. Raise this only if you need the headroom.
-model_auto_compact_token_limit = 270000
-tool_output_token_limit = 32000        # more tool output kept in context (default is much lower)
-project_doc_max_bytes = 65536          # read up to 64KB of AGENTS.md
-
-# Reuse .claude/CLAUDE.md if no AGENTS.md exists — avoids duplicating instructions
-# across Claude Code and Codex CLI projects
-project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
-
-# ── Approval & Sandbox ────────────────────────────────────────────────────────
-# approval_policy and sandbox_mode are set in the Global section above.
-# For fully trusted sessions use: codex --full-auto
-# To bypass everything for a session: codex --yolo
-
-# ── Outbound Privacy ──────────────────────────────────────────────────────────
-# check_for_update_on_startup and web_search are set in the Global section above.
-# Azure: if you get "Tool 'web_search_preview' disabled for this organization",
-# web_search = "disabled" is required at root level. Placing it after any [table]
-# header causes it to be silently ignored.
+# ── Context ───────────────────────────────────────────────────────────────────
+tool_output_token_limit = 32000        # tool output kept in context (the default truncates large files)
+project_doc_max_bytes = 65536          # AGENTS.md chain budget (default 32 KiB; the chain is root → cwd, concatenated)
+project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]   # reuse a Claude Code file when no AGENTS.md exists
+# model_auto_compact_token_limit: leave unset unless your model's pricing has a long-prompt surcharge
+# (GPT-5.5 did at 272K; check the pricing page for the model you run). Example: = 270000
 
 [analytics]
 enabled = false
@@ -63,12 +53,12 @@ enabled = false
 [feedback]
 enabled = false
 
-# ── Local History — keep everything ───────────────────────────────────────────
+# ── Local history ─────────────────────────────────────────────────────────────
 [history]
 persistence = "save-all"
-max_bytes = 209715200                  # 200MB
+max_bytes = 209715200                  # 200 MB
 
-# ── Cross-session Memory ──────────────────────────────────────────────────────
+# ── Cross-session memory (the tool's own; the session-notes file is the user-readable record) ──
 [memories]
 generate_memories = true
 use_memories = true
@@ -80,45 +70,40 @@ no_memories_if_mcp_or_web_search = false
 
 # ── Features ──────────────────────────────────────────────────────────────────
 [features]
-# If Azure rejects web_search_preview ("Tool disabled for this organization"),
-# set web_search = false here AND web_search = "disabled" at the top level.
-# The top-level mode controls fetch behavior; this controls API tool registration.
-# web_search = false
-undo = true                # git snapshot at each turn — enables per-step undo
-multi_agent = true         # spawn parallel sub-agents for larger tasks
-child_agents_md = true     # sub-agents inherit AGENTS.md coaching (critical — off by default)
-memories = true            # enable cross-session memory subsystem above
-prevent_idle_sleep = true  # keep system awake during long tasks
-js_repl = true             # persistent Node-backed JS REPL
-request_permissions = true # model can request more FS permissions without leaving sandbox
-codex_git_commit = true    # git commit attribution guidance
-personality = true         # required to enable the personality setting above
+hooks = true               # lifecycle hooks from ~/.codex/hooks.json (session-notes guard) — trust them once with /hooks
+undo = true                # git snapshot at each turn — `codex undo`
+multi_agent = true         # parallel sub-agents (they inherit model/effort/sandbox/MCP/skills from the parent)
+memories = true            # enables [memories] above
+prevent_idle_sleep = true  # keep the machine awake during long tasks (experimental)
+request_permissions = true # the model can ask for more filesystem access without leaving the sandbox
+codex_git_commit = true    # commit attribution guidance
 
-# ── Shell Environment ─────────────────────────────────────────────────────────
+# ── Skills (folders holding a SKILL.md; invoke with $name or let Codex pick by description) ──
+# Point at the clone of this repository; use absolute paths if "~" is not expanded on your platform.
+[[skills.config]]
+path = "~/ai-agent-templates/skills/azure-cli"
+enabled = true
+
+[[skills.config]]
+path = "~/ai-agent-templates/skills/session-notes"
+enabled = true
+
+[[skills.config]]
+path = "~/ai-agent-templates/skills/kb-capture"
+enabled = true
+
+# ── Shell environment ─────────────────────────────────────────────────────────
 [shell_environment_policy]
-inherit = "all"            # pass full environment to shell processes
-                           # use "core" or "none" in security-sensitive environments
+inherit = "all"            # all | core | none. Strip secrets with: filters = { exclude = ["*SECRET*", "*TOKEN*"] }
 
 # ── TUI ───────────────────────────────────────────────────────────────────────
 [tui]
 animations = false
 show_tooltips = false
-status_line = [
-  "model-with-reasoning",  # model name + reasoning effort level
-  "context-remaining",     # % of context window remaining
-  "git-branch",            # current git branch
-  "used-tokens",           # tokens used this session
-]
+status_line = ["model-with-reasoning", "context-remaining", "git-branch"]
 
-# ── Profiles — quick switching with: codex --profile <name> ───────────────────
-[profiles.fast]
-# Low-friction mode for quick tasks
-model = "gpt-5-mini"
-model_reasoning_effort = "low"
-approval_policy = "never"
-
-[profiles.deep]
-# Higher reasoning for hard design/audit work — same base model, deeper budget
-model_reasoning_effort = "high"        # "xhigh" only with eval evidence — can regress otherwise
-model_reasoning_summary = "detailed"
-plan_mode_reasoning_effort = "high"
+# ── Profiles are separate files since Codex 0.134 ─────────────────────────────
+# `codex --profile deep` loads this file, then overlays ~/.codex/deep.config.toml (only the keys that differ).
+# Ready-made overlays in this repository's codex/profiles/: deep, fast, luna. Install with
+#   cp ~/ai-agent-templates/codex/profiles/*.config.toml ~/.codex/
+# A [profiles.name] table here is ignored by current Codex versions — do not add one.

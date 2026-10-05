@@ -15,14 +15,13 @@ model = "gpt-5.1"
 suppress_unstable_features_warning = true
 check_for_update_on_startup = false
 web_search = "cached"                  # routed through Azure API, not direct — safe source; 5.1 benefits from lookup ability
-approval_policy = "untrusted"          # auto-approves reads; prompts for writes/exec
+approval_policy = "on-request"         # "untrusted" is no longer supported (Codex 0.160); "never" for non-interactive runs
 sandbox_mode = "workspace-write"       # write freely within project, read anywhere
 
 # ── Model & Reasoning — push 5.1 as hard as possible ─────────────────────────
 model_reasoning_effort = "xhigh"       # max reasoning depth (5.1 needs all the help it can get)
 model_reasoning_summary = "detailed"   # show reasoning steps so you can catch bad logic early
 model_verbosity = "high"               # detailed responses — 5.1 tends to be terse
-personality = "pragmatic"              # direct, no fluff (requires features.personality)
 
 plan_mode_reasoning_effort = "high"    # force deep thinking in plan/explore phase
 review_model = "gpt-5.1"              # only model available
@@ -61,13 +60,11 @@ no_memories_if_mcp_or_web_search = false
 [features]
 undo = true                # git snapshot at each turn — safety net for 5.1 mistakes
 multi_agent = true         # parallel sub-agents for larger tasks
-child_agents_md = true     # CRITICAL: sub-agents inherit AGENTS.md coaching (off by default!)
 memories = true            # cross-session memory
 prevent_idle_sleep = true  # keep system awake during long tasks
-js_repl = true             # persistent Node-backed JS REPL
 request_permissions = true # model can request more FS permissions without leaving sandbox
 codex_git_commit = true    # git commit attribution guidance
-personality = true         # required for personality = "pragmatic" above
+hooks = true               # lifecycle hooks from ~/.codex/hooks.json (session-notes guard); trust once with /hooks
 
 # ── Shell Environment ────────────────────────────────────────────────────────
 [shell_environment_policy]
@@ -84,15 +81,9 @@ status_line = [
   "used-tokens",
 ]
 
-# ── Profiles — quick switching with: codex --profile <name> ──────────────────
-[profiles.fast]
-model_reasoning_effort = "medium"
-approval_policy = "never"
-
-[profiles.deep]
-model_reasoning_effort = "xhigh"
-model_reasoning_summary = "detailed"
-plan_mode_reasoning_effort = "high"
+# ── Profiles are separate files since Codex 0.134 ────────────────────────────
+# `codex --profile deep` overlays ~/.codex/deep.config.toml on this file; see ../deep.config.toml,
+# ../fast.config.toml, ../luna.config.toml. A [profiles.name] table here is ignored.
 
 # ── Azure Provider ───────────────────────────────────────────────────────────
 # Replace YOUR_RESOURCE_NAME with your actual Azure resource name.

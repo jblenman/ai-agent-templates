@@ -1,0 +1,10 @@
+# ~/.codex/luna.config.toml — `codex --profile luna`
+# For environments where only a Luna-tier deployment exists (e.g. an Azure deployment of gpt-5.6-luna).
+# Luna is the efficient/high-volume tier ("roughly the nano tier"; in Codex it replaced gpt-5.4-mini):
+# expect a small model's habits — first plausible answer, thin investigation, early hand-backs — and give
+# it the two things that help: a higher reasoning effort and the evidence rules in AGENTS.md.
+model = "gpt-5.6-luna"                 # your deployment name on Azure
+model_reasoning_effort = "high"        # none|low|medium|high|xhigh|max are accepted; "high" is the floor here,
+                                       # "xhigh" when the task is an investigation, not a one-line edit
+model_reasoning_summary = "concise"    # see what it skipped
+plan_mode_reasoning_effort = "high"

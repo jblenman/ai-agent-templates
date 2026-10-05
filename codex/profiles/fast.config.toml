@@ -1,0 +1,5 @@
+# ~/.codex/fast.config.toml — `codex --profile fast`
+# Low-friction overlay for triage, file extraction, transforms. Set `model` to your cheapest capable deployment.
+model = "gpt-6-luna"
+model_reasoning_effort = "low"
+approval_policy = "never"

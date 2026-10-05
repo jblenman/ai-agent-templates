@@ -12,16 +12,16 @@ Configuration templates and starter files for AI coding agents.
 
 ## Model Profiles
 
-The default configs target multi-model Azure deployments with GPT-5.5 as the daily driver. For systems with limited model availability, use a model-specific profile instead:
+The default configs target multi-model Azure deployments with a Sol-tier model (GPT-6.1 Sol on OpenAI; your Sol-tier deployment on Azure) as the daily driver. For systems with limited model availability, use a model-specific profile instead:
 
 | Profile | Models | Environment | Location |
 |---------|--------|-------------|----------|
-| **Default** | **gpt-5.5 / 5-mini** (+ 5.4, 5.3-codex fallbacks) | AVD (air-gapped) | `opencode/`, `codex/` |
-| [Thorough](opencode/profiles/thorough/) | gpt-5.5 at `reasoning_effort = "high"` | Same as default; opt-in for depth-over-speed | `opencode/profiles/thorough/` |
+| **Default** | **Sol tier** (gpt-6.1-sol / your Azure deployment) + a Luna-tier small model | AVD (air-gapped) | `opencode/`, `codex/` |
+| [Thorough](opencode/profiles/thorough/) | the default model at `reasoning_effort = "high"` | Same as default; opt-in for depth-over-speed | `opencode/profiles/thorough/` |
 | [GPT-5.1](opencode/profiles/gpt-5.1/) | gpt-5.1 only | Federal (standard) | `*/profiles/gpt-5.1/` |
 | [Bedrock / restricted gov](claude-code/profiles/bedrock-gov/) | Claude Opus 5 via Amazon Bedrock | Isolated government dev environment (no internet, hard data boundary) | `claude-code/profiles/bedrock-gov/` |
 
-**Why the default targets GPT-5.5:** OpenAI's prompt guidance for 5.5 inverts the playbook from earlier models — short, outcome-first AGENTS.md beats process-heavy "think step-by-step / consider alternatives" coaching, which now causes 5.5 to over-process and stop early during rollouts. The default templates use the modular Role / Goal / Success / Constraints / Output / Stop Rules structure OpenAI recommends. The GPT-5.1 profile keeps the heavier coaching for weaker models.
+**Why the defaults stay short:** OpenAI's guidance for GPT-5.6 and GPT-6 is leaner prompts (higher evals, far fewer tokens), autonomy boundaries stated once, and no "think harder" coaching; the newest models follow AGENTS.md and skills closely and pause on contradictions. The Oct 2026 additions (evidence rules, session notes, knowledge base, skills) are behaviour the models do not have by default — see each tool's guide.
 
 **The Thorough profile** is for users who want depth-over-speed on the same model. It pairs the outcome-first structure (which 5.5 responds to) with explicit Investigation Requirements that force the agent to read callers, check tests, and surface cross-file impact before implementing. Use it for unfamiliar code, public-interface changes, or design-affecting work; stick with the default for routine work where per-turn latency matters more. Codex CLI users get the equivalent via `codex --profile deep`.
 
@@ -75,30 +75,35 @@ Templates for [OpenAI Codex CLI](https://github.com/openai/codex).
 
 | File | Purpose | Install location |
 |------|---------|-----------------|
-| [`codex/config.toml`](codex/config.toml) | Global config | `~/.codex/config.toml` |
+| [`codex/config.toml`](codex/config.toml) | Global config (Codex 0.160 keys) | `~/.codex/config.toml` |
 | [`codex/AGENTS.md`](codex/AGENTS.md) | Global coaching instructions | `~/.codex/AGENTS.md` |
+| [`codex/hooks.json`](codex/hooks.json) + [`codex/hooks/session_notes.py`](codex/hooks/session_notes.py) | Session-notes hooks (SessionStart / Stop / PreCompact) | `~/.codex/hooks.json`, `~/.codex/hooks/` |
+| [`codex/profiles/*.config.toml`](codex/profiles/) | Profile overlays `deep`, `fast`, `luna` (`codex --profile <name>`) | `~/.codex/<name>.config.toml` |
+| [`skills/`](skills/) | `azure-cli`, `session-notes`, `kb-capture` — referenced in place by `[[skills.config]]` | the clone |
+| [`knowledge-base/`](knowledge-base/README.md) | A starter knowledge base the agent reads first and gives back to | `~/knowledge-base/` (or a team repo) |
 | [`codex/GUIDE.md`](codex/GUIDE.md) | Reference — what each setting does and why | — |
 
 ### Quick install
 
 ```bash
-mkdir -p ~/.codex
-curl -o ~/.codex/config.toml https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/codex/config.toml
-curl -o ~/.codex/AGENTS.md https://raw.githubusercontent.com/jblenman/ai-agent-templates/main/codex/AGENTS.md
+git clone https://github.com/jblenman/ai-agent-templates ~/ai-agent-templates
+mkdir -p ~/.codex/hooks
+cp ~/ai-agent-templates/codex/config.toml ~/ai-agent-templates/codex/AGENTS.md ~/ai-agent-templates/codex/hooks.json ~/.codex/
+cp ~/ai-agent-templates/codex/hooks/session_notes.py ~/.codex/hooks/
+cp ~/ai-agent-templates/codex/profiles/*.config.toml ~/.codex/
 ```
+
+Then `/hooks` once inside Codex to trust the session-notes hooks. The skills are read from the clone (`[[skills.config]]` paths in `config.toml`).
 
 ### Highlights
 
-- `model = "gpt-5.5"` with `model_reasoning_effort = "medium"` and `model_verbosity = "low"` — matches OpenAI's official guidance for 5.5
-- `model_auto_compact_token_limit = 270000` — caps just under the 272K input pricing cliff (where requests get billed at 2× input / 1.5× output)
-- `tool_output_token_limit = 32000` — reads large files without truncation
-- `child_agents_md = true` — sub-agents inherit your coaching (off by default)
-- `memories = true` — cross-session memory across restarts
-- `undo = true` — git snapshot before each change, per-step rollback
-- `[profiles.deep]` raises reasoning to `high` on the same model for hard design/audit work
-- TUI hotkeys (Codex v0.124.0+): `Alt+,` lower / `Alt+.` raise reasoning live
-- Analytics, feedback, and update checks disabled
-- Full local history saved
+- **Evidence Rules** in AGENTS.md — an empty tool result is not "no access": bisect the command, read exit code and stderr, quote the command and output for every claim about the environment, three different attempts before a hand-back. Written after a Luna-tier model turned a malformed `az --query` into "your account has no access".
+- **Session notes** a new session boots from, enforced by hooks: `SessionStart` hands the file to the model, `Stop` continues the turn once while it is stale or missing, `PreCompact` records compactions.
+- **Skills**: `azure-cli` (login and scope first, inventory without filters, JMESPath rules), `session-notes`, `kb-capture`; **knowledge-base** starter with read-first and give-back rules.
+- `model = "gpt-6.1-sol"` (Codex's default); OpenAI's 2026 tiers explained in the guide — Sol (capable) / Terra / Luna (efficient, nano-class). A `luna` profile for environments that only have `gpt-5.6-luna`.
+- `approval_policy = "on-request"` — `untrusted` is no longer supported by Codex.
+- Profiles are overlay files (`deep`, `fast`, `luna`), not `[profiles.*]` tables (retired in 0.134).
+- `tool_output_token_limit = 32000`, `memories`, `undo`, `request_permissions`, hooks enabled; analytics, feedback and update checks off; full local history.
 
 ### GPT-5.1 Profile
 
@@ -177,7 +182,7 @@ All three tools can share a single `CLAUDE.md` instruction file:
   project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]
   ```
 
-OpenCode-specific features (agents, commands, skills) stay in `~/.config/opencode/` — Claude Code and Codex don't have equivalents for these.
+OpenCode-specific agents and commands stay in `~/.config/opencode/`. Skills are shared: the folders under [`skills/`](skills/) load in Codex (`[[skills.config]]`), OpenCode (`~/.config/opencode/skills/` or `.opencode/skills/`) and Claude Code (`~/.claude/skills/`) alike, and the [`knowledge-base/`](knowledge-base/README.md) starter is read by all three.
 
 ---
 
