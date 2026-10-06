@@ -152,6 +152,45 @@ Disables the welcome shimmer and spinners. Cleaner, slightly faster startup.
 
 The GPT-5.1 federal profile under `profiles/gpt-5.1/` is a full config for that environment (not an overlay).
 
+## Cost and effort — what to run on which model, at which effort
+
+### What a step costs
+
+Cost per step ≈ **(context size × input price) + ((output + reasoning tokens) × output price)**. Every step re-sends the whole context — AGENTS.md, the skills catalog, the transcript, every tool output still in the window — so once a session passes ~50–100K tokens the input term dominates regardless of effort. The reasoning-effort setting only touches the second term. Consequence: on a long session the effort setting is not your cost lever; context size is.
+
+List prices per 1M tokens from OpenAI's model pages (Oct 2026; Azure, including Azure Government, can differ — check the Foundry pricing page for your region):
+
+| Model | Input | Cached input | Output |
+|---|---|---|---|
+| GPT-6.1 Sol | $2.00 | $0.10 | $10.00 |
+| GPT-5.6 Sol | $4.00 | $0.40 | $20.00 (promotional, "at least through Nov 21 2026") |
+| GPT-5.6 Terra | $2.00 | — | — |
+| GPT-5.6 Luna | $0.20 | $0.02 | $1.20 |
+
+Two rules that follow: prompts above 272K input tokens are billed at 2× input / 1.5× output for the **whole** request on all of these, so keep `model_auto_compact_token_limit = 270000`; and a single heavy user on a capable tier can double a small team's daily spend — budget alerts and a TPM quota on the deployment belong in the setup, not in the post-mortem.
+
+### Effort is a ceiling, not a rate
+
+`model_reasoning_effort` sets a budget for the hidden reasoning tokens and a propensity to use it. On an easy step a high-effort model stops early, so the "N× tokens" figures in warnings are averages over a vendor's mixed eval set, not a per-call multiplier. The multiple becomes real on open-ended work, where the model uses the room it is given. Nobody can forecast a step's cost in advance — difficulty is discovered while reasoning — which is why effort is a cap and `auto`/`none` modes exist. Measure your own multiple once: run a representative step at `medium` and at `high` and compare the reasoning tokens (`codex exec --json` reports them; the status line's `used-tokens` shows the session total).
+
+### Choose by the cost of being wrong, per step
+
+| Run | When |
+|---|---|
+| Luna-tier, `medium` | a closed task with a checkable output: format, extract, summarize a document, write a script from a clear spec, run a known procedure (a skill), "now do the same for X" |
+| Terra/Sol, `medium` | implementing a decided design; code where compiling and tests tell you if it is wrong; routine edits in a known codebase |
+| Terra/Sol, `high` | the model must decide *what to look at next*: investigations, root-cause analysis with ambiguous evidence, comparing options, anything with three or more interacting constraints |
+| Terra/Sol, `xhigh` | one-off decisions that are expensive to detect as wrong later (architecture, migration order), where paying once beats re-litigating |
+
+Bump **up** mid-session when you see a confident conclusion you cannot verify quickly, an early hand-back, a retry loop, or a conclusion that contradicts evidence in front of you. Bump **down** the moment the work turns mechanical. `Alt+.` / `Alt+,` make this a per-step choice — the step, not the session, is the right unit.
+
+### Structural savings (bigger than any effort setting)
+
+- One session per question, not per day: compact or start fresh when a sub-question is answered; carry findings in the session-notes file, not in the context.
+- Keep tool outputs small: `tool_output_token_limit` around 16000 for data work (query results, schema dumps are the main context inflators); ask for counts and heads, not dumps — the Evidence Rules already push that way.
+- Let the small model pre-digest (summaries, extracts, listings via `codex --profile fast` or as `review_model`) and hand the capable model the digest.
+- `multi_agent` sub-agents each carry their own context — a multiplier; use when the parallelism is worth it.
+
 ## TUI Reasoning Hotkeys (Codex v0.124.0+)
 
 - `Alt+,` — lower reasoning effort one step
