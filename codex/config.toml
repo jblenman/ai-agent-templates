@@ -16,9 +16,10 @@
 # ── Model ─────────────────────────────────────────────────────────────────────
 # OpenAI's 2026 naming: a family (5.6, 6, 6.1) and a tier — Sol = most capable, Terra = balanced,
 # Luna = efficient/high-volume ("roughly the nano tier"; in Codex it replaced gpt-5.4-mini). Codex's own
-# default is gpt-6.1-sol (0.159+). On Azure the value is your deployment name; ask for a Sol-tier
-# deployment for agentic work. If only a Luna-tier deployment exists, use the `luna` profile below:
-# it is a small model and needs a higher reasoning effort plus the evidence rules in AGENTS.md.
+# default is gpt-6.1-sol (0.159+). On Azure the value is your deployment name: a Sol-tier deployment
+# for agentic work, Terra (e.g. gpt-5.6-terra) as a capable middle, Luna only as the cheap small model.
+# If only a Luna-tier deployment exists, use the `luna` profile below: it is a small model and needs a
+# higher reasoning effort plus the evidence rules in AGENTS.md.
 model = "gpt-6.1-sol"
 
 suppress_unstable_features_warning = true
