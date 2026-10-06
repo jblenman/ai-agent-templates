@@ -22,6 +22,8 @@ Windows (PowerShell): the same copies with `$HOME\.codex\…`. `hooks.json` carr
 
 **If a hook fails:** run it by hand to see the real error — `'{"session_id":"t","hook_event_name":"SessionStart"}' | py "$HOME\.codex\hooks\session_notes.py" session-start` should print a JSON line; check `/hooks` in the TUI (trust state and the last failure per hook); and look at Codex's log under `~/.codex/log/`. A hook that errors is reported and skipped — it never stops the session — but a skipped `Stop` hook means the notes file is no longer enforced.
 
+**Windows: `Failed to create unified exec process: CreateProcessAsUserW failed: N`.** Codex's native Windows sandbox runs every shell command as a restricted local user (`CodexSandboxOnline`/`CodexSandboxOffline`); when that user cannot start the process the command never runs and the model falls back to its own `read_file`/`apply_patch` tools (which is why reads of `~/.codex/memories` or a skills folder under your profile "fail" yet still get done). A known regression family (100+ issues on `openai/codex`, Jun–Oct 2026). The number is the diagnosis: `2` = the program cannot be found/executed by the sandbox user (a `pwsh`/`py` WindowsApps alias — use the real `powershell.exe`/`python.exe`), `5` = access denied on the path, `1312` = no logon session. Check with `codex doctor` and the smoke test `codex sandbox windows -- C:\Windows\System32\cmd.exe /c echo OK`. Options: leave it (reads work through Codex's own tools); try `windows.sandbox = "unelevated"` or `"mxc"`; or `sandbox_mode = "danger-full-access"` with `approval_policy = "on-request"` kept, which removes the sandbox user from the path entirely — a fair trade on a single-user, locked-down machine.
+
 ## config.toml Reference
 
 ### Model & Reasoning
