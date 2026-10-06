@@ -44,7 +44,7 @@ A free-form level whose allowed values depend on the model: the 5.6/6.x Sol and 
 
 ### Context
 
-**`model_auto_compact_token_limit`** (now unset; it was 270000 for GPT-5.5)
+**`model_auto_compact_token_limit = 270000`** (the 5.6/6.x models keep GPT-5.5's 272K pricing cliff: 2× input / 1.5× output for the whole request above it)
 Triggers compaction at 270K input tokens, just under OpenAI's 272K pricing cliff. Once a single prompt crosses 272K, the entire request is billed at 2× input / 1.5× output for that turn — including the 270K of conversation already there. Compacting earlier avoids the surcharge.
 - Raise to ~900000 if you genuinely need long-context retrieval and accept the cost
 - Set to `-1` to disable auto-compaction entirely (let context fill to limit)

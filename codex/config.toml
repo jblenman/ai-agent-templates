@@ -45,8 +45,9 @@ plan_mode_reasoning_effort = "high"    # reasoning level for the plan/explore ph
 tool_output_token_limit = 32000        # tool output kept in context (the default truncates large files)
 project_doc_max_bytes = 65536          # AGENTS.md chain budget (default 32 KiB; the chain is root → cwd, concatenated)
 project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]   # reuse a Claude Code file when no AGENTS.md exists
-# model_auto_compact_token_limit: leave unset unless your model's pricing has a long-prompt surcharge
-# (GPT-5.5 did at 272K; check the pricing page for the model you run). Example: = 270000
+# The 5.6 and 6.x Sol/Terra/Luna models bill prompts above 272K input tokens at 2x input / 1.5x output for the
+# whole request (model pages, Oct 2026), so compact just under it; set -1 to disable auto-compaction.
+model_auto_compact_token_limit = 270000
 
 [analytics]
 enabled = false
