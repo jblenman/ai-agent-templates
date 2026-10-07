@@ -129,6 +129,10 @@ Cross-session memory subsystem. Generates summaries of sessions and injects them
 **`prevent_idle_sleep = true`** (experimental), **`request_permissions = true`**, **`codex_git_commit = true`** — unchanged.
 Removed: `js_repl` (a retired switch, rejected under Work Cloud), `features.web_search*` (use the top-level `web_search`), `personality`.
 
+### Subagents
+
+`features.multi_agent` (on by default) gives Codex built-in `default`, `worker` and `explorer` agents and lets you define your own as TOML files in `~/.codex/agents/` or `<repo>/.codex/agents/` (`name`, `description`, `developer_instructions` required; `model`, `model_reasoning_effort`, `sandbox_mode`, `mcp_servers`, `skills.config` optional, inherited from the parent when omitted). `[agents]` holds the defaults (`max_concurrent_threads_per_session`, `default_subagent_model`, `default_subagent_reasoning_effort`). This repository ships five in [`agents/`](agents/README.md). Trigger them by asking, or from an AGENTS.md/skill instruction; `/agent` switches threads. Unlike Claude Code's subagents there is no per-agent tool allow-list (use `sandbox_mode`), no per-agent memory or hooks, and the AGENTS.md chain is not documented to reach them — the agent file carries its own rules.
+
 ### Skills
 
 A skill is a folder with a `SKILL.md` (name + description + the procedure). Codex selects one when the task matches its description, or you invoke it with `$name`. `[[skills.config]]` entries in `config.toml` register folders from anywhere on disk, so the shared [`../skills/`](../skills/) folder is used in place. `skills.max_context_tokens` caps the catalog shown to the model (default 2 % of the context window). Newer models follow skills closely and pause on contradictory ones — keep skills consistent with AGENTS.md.

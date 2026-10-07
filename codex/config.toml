@@ -53,6 +53,12 @@ project_doc_fallback_filenames = [".claude/CLAUDE.md", "CLAUDE.md"]   # reuse a 
 # whole request (model pages, Oct 2026), so compact just under it; set -1 to disable auto-compaction.
 model_auto_compact_token_limit = 270000
 
+# ── Subagents (custom agents in ~/.codex/agents/*.toml — see codex/agents/README.md) ───────────────
+[agents]
+max_concurrent_threads_per_session = 6
+default_subagent_model = "gpt-6-luna"      # cheap default for spawned agents; agent files override it
+default_subagent_reasoning_effort = "high"
+
 [analytics]
 enabled = false
 

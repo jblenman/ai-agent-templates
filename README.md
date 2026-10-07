@@ -79,6 +79,7 @@ Templates for [OpenAI Codex CLI](https://github.com/openai/codex).
 | [`codex/config.toml`](codex/config.toml) | Global config (Codex 0.160 keys) | `~/.codex/config.toml` |
 | [`codex/AGENTS.md`](codex/AGENTS.md) | Global coaching instructions | `~/.codex/AGENTS.md` |
 | [`codex/hooks.json`](codex/hooks.json) + [`codex/hooks/session_notes.py`](codex/hooks/session_notes.py) | Session-notes hooks (SessionStart / Stop / PreCompact) | `~/.codex/hooks.json`, `~/.codex/hooks/` |
+| [`codex/agents/*.toml`](codex/agents/README.md) | Custom subagents: explorer (evidence rules, read-only), reviewer, qa_tester, security_auditor, scribe | `~/.codex/agents/` |
 | [`codex/profiles/*.config.toml`](codex/profiles/) | Profile overlays `deep`, `fast`, `luna` (`codex --profile <name>`) | `~/.codex/<name>.config.toml` |
 | [`skills/`](skills/) | `azure-cli`, `session-notes`, `kb-capture` — referenced in place by `[[skills.config]]` | the clone |
 | [`knowledge-base/`](knowledge-base/README.md) | A starter knowledge base the agent reads first and gives back to | `~/knowledge-base/` (or a team repo) |
