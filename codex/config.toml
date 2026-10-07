@@ -29,7 +29,8 @@ web_search = "disabled"                # disabled | cached | indexed | live. Azu
 approval_policy = "on-request"         # on-request | never | { granular = {...} }. "untrusted" is no longer
                                        # supported, "on-failure" is deprecated. "never" for non-interactive runs.
 sandbox_mode = "workspace-write"       # read-only | workspace-write | danger-full-access
-# The session-notes hooks keep their file at <workspace>/.codex/session-notes.md, which this mode allows.
+# The session-notes hooks keep their file at <workspace>/session-notes.md (writable here; not under .codex, which the
+# sandbox protects even inside the workspace).
 # For one machine-wide notes file set SESSION_NOTES and add its folder here (never ~/.codex itself):
 # sandbox_workspace_write.writable_roots = ["C:/Users/you/codex-notes"]
 

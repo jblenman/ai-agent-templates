@@ -12,7 +12,7 @@ hook never loops. Exit 0 with no output means "nothing to say". Every failure pa
 a broken hook must never stop a session.
 
 Configuration (environment):
-  SESSION_NOTES              path of the notes file (default: <workspace>/.codex/session-notes.md, from the event's cwd)
+  SESSION_NOTES              path of the notes file (default: <workspace>/session-notes.md, from the event's cwd; not under .codex)
   SESSION_NOTES_STALE_MIN    minutes before the file counts as stale at a Stop (default 30)
   SESSION_NOTES_HEAD_LINES   how many lines SessionStart hands to the model (default 80)
   SESSION_NOTES_GUARD=off    disable the Stop check (headless runs, throwaway sessions)
@@ -27,15 +27,16 @@ from pathlib import Path
 
 
 def notes_path(cwd=None):
-    """SESSION_NOTES if set; else <workspace>/.codex/session-notes.md — inside the workspace, because the
-    workspace-write sandbox blocks writes anywhere else (a file under ~/.codex would need an escalation
-    on every update). For a machine-wide file set SESSION_NOTES and add its folder to
-    sandbox_workspace_write.writable_roots — never ~/.codex itself."""
+    """SESSION_NOTES if set; else <workspace>/session-notes.md — inside the workspace, because the
+    workspace-write sandbox blocks writes anywhere else, and NOT under .codex, because the sandbox
+    protects its own config folders (.codex, .git) with deny ACEs even inside the workspace. For a
+    machine-wide file set SESSION_NOTES and add its folder to sandbox_workspace_write.writable_roots
+    (never ~/.codex itself)."""
     p = os.environ.get("SESSION_NOTES", "").strip()
     if p:
         return Path(os.path.expanduser(p))
     base = cwd or os.getcwd()
-    return Path(base) / ".codex" / "session-notes.md"
+    return Path(base) / "session-notes.md"
 
 
 def state_dir():
