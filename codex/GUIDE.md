@@ -73,6 +73,16 @@ If no `AGENTS.md` exists in a project, Codex checks these filenames instead. Thi
 
 **`sandbox_mode = "workspace-write"`** — `read-only` | `workspace-write` | `danger-full-access`, unchanged. Session overrides: `codex --full-auto`, `codex --yolo`.
 
+**Reads, prompts and rules — what actually asks.** Codex's own file tools (`read_file`, search, `apply_patch`) never prompt. Shell reads succeed silently inside `workspace-write`; a prompt means the sandbox *denied* the command and Codex is asking to run it outside. The workspace-write sandbox has **no network**, so cloud CLIs (`az`, `gh`, `curl`) escalate on every call unless `sandbox_workspace_write.network_access = true`. Pre-approve escalations with **rules** — `~/.codex/rules/default.rules`, loaded at startup:
+
+```python
+prefix_rule(pattern=["rg"], decision="allow", justification="read-only search")
+prefix_rule(pattern=["git", ["status", "log", "diff", "show"]], decision="allow")
+prefix_rule(pattern=["az", "account", "show"], decision="allow")
+```
+
+`decision` is `allow` | `prompt` | `forbidden` (most restrictive wins); `match`/`not_match` are inline tests; `codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- git log -1` shows the verdict. The TUI's "always allow" writes to this file, and Smart approvals propose prefixes during escalations — read them before accepting (`["pwsh", "-Command"]` would allow every PowerShell command). The docs describe splitting `bash -c`/`sh -c` scripts into separate commands for rule matching; PowerShell `-Command` wrapping is not documented — test it. Blunt alternatives: `approval_policy = "never"` (no prompts; sandbox write limits still hold; failures go back to the model) or `sandbox_mode = "danger-full-access"`. On a single-user machine, `never` + `workspace-write` + `network_access = true` is the closest thing to Claude Code's auto mode.
+
 ### Outbound Privacy
 
 **`check_for_update_on_startup = false`**
