@@ -12,7 +12,7 @@ hook never loops. Exit 0 with no output means "nothing to say". Every failure pa
 a broken hook must never stop a session.
 
 Configuration (environment):
-  SESSION_NOTES              path of the notes file (default: <CODEX_HOME or ~/.codex>/session-notes.md)
+  SESSION_NOTES              path of the notes file (default: <workspace>/.codex/session-notes.md, from the event's cwd)
   SESSION_NOTES_STALE_MIN    minutes before the file counts as stale at a Stop (default 30)
   SESSION_NOTES_HEAD_LINES   how many lines SessionStart hands to the model (default 80)
   SESSION_NOTES_GUARD=off    disable the Stop check (headless runs, throwaway sessions)
@@ -26,16 +26,20 @@ import time
 from pathlib import Path
 
 
-def notes_path():
+def notes_path(cwd=None):
+    """SESSION_NOTES if set; else <workspace>/.codex/session-notes.md — inside the workspace, because the
+    workspace-write sandbox blocks writes anywhere else (a file under ~/.codex would need an escalation
+    on every update). For a machine-wide file set SESSION_NOTES and add its folder to
+    sandbox_workspace_write.writable_roots — never ~/.codex itself."""
     p = os.environ.get("SESSION_NOTES", "").strip()
     if p:
         return Path(os.path.expanduser(p))
-    home = os.environ.get("CODEX_HOME", "").strip() or os.path.join(os.path.expanduser("~"), ".codex")
-    return Path(home) / "session-notes.md"
+    base = cwd or os.getcwd()
+    return Path(base) / ".codex" / "session-notes.md"
 
 
 def state_dir():
-    d = notes_path().parent / "session-notes-state"
+    d = Path(os.environ.get("CODEX_HOME", "").strip() or os.path.join(os.path.expanduser("~"), ".codex")) / "session-notes-state"
     try:
         d.mkdir(parents=True, exist_ok=True)
     except OSError:
@@ -79,7 +83,7 @@ def save_state(f, st):
 
 
 def cmd_session_start(ev):
-    p = notes_path()
+    p = notes_path(ev.get("cwd"))
     n = int(os.environ.get("SESSION_NOTES_HEAD_LINES") or 80)
     try:
         lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -99,7 +103,7 @@ def cmd_pre_compact(ev):
     f, st = session_state(ev.get("session_id"))
     st["compact_ts"] = time.time()
     st["compact_trigger"] = ev.get("trigger") or "auto"
-    st["compact_stale_min"] = age_minutes(notes_path())
+    st["compact_stale_min"] = age_minutes(notes_path(ev.get("cwd")))
     save_state(f, st)
     # no output: a compaction is never blocked
 
@@ -109,7 +113,7 @@ def cmd_stop(ev):
         return
     if ev.get("stop_hook_active"):
         return                                  # already continued once this turn
-    p = notes_path()
+    p = notes_path(ev.get("cwd"))
     stale_min = float(os.environ.get("SESSION_NOTES_STALE_MIN") or 30)
     f, st = session_state(ev.get("session_id"))
     age = age_minutes(p)
