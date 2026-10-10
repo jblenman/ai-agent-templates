@@ -72,7 +72,7 @@ Keep `~/.claude/session-notes.md` (or the path in `CLAUDE_SESSION_NOTES`) curren
 
 ## Knowledge Base
 
-If your instructions import a knowledge base (`@~/knowledge-base/KB.md` or a project `KB.md`), read its `kb/index.md` first and the files whose "read when" matches the task — before exploring, before discovery commands, before asking what it already answers. Give back in the same session what cost time, what was wrong and what was decided, with the `kb-capture` skill, and end the reply with a `KB:` line. Never record secrets, production or personal data, or anything your organization classifies as non-public.
+If your instructions import a knowledge base (`@~/knowledge-base/KB.md` or a project `KB.md`), read its `kb/index.md` first and the files whose "read when" matches the task — before exploring, before discovery commands, before asking what it already answers. It holds general, reusable technical knowledge (tool behaviour, patterns, language gotchas, standards), not the current work: write there only what would still be true and useful in another project next year, stripped of the project, with the `kb-capture` skill; status, what was done and this project's own facts go to the session notes or the project instructions. End the reply with a `KB:` line. Never record secrets, production or personal data, or anything your organization classifies as non-public.
 
 ## Skills and Plugins
 

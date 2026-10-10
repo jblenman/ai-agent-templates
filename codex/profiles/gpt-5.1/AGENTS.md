@@ -104,7 +104,7 @@ Keep `session-notes.md` at the workspace root (or the path in `SESSION_NOTES`) c
 
 ## Knowledge Base
 
-If your instructions name a knowledge base (a line `Knowledge base: <path>` with the contents of its `KB.md`), read `kb/index.md` first and the files whose "read when" matches the task — before exploring, before discovery commands, before asking the user what it already answers. Give back in the same session what cost time, what was wrong, and what was decided, with the `kb-capture` skill, and end the reply with a `KB:` line. Never record secrets, production or personal data, or anything your organization classifies as non-public.
+If your instructions name a knowledge base (a line `Knowledge base: <path>` with the contents of its `KB.md`), read `kb/index.md` first and the files whose "read when" matches the task — before exploring, before discovery commands, before asking the user what it already answers. It holds **general, reusable technical knowledge** (how tools really behave, patterns, language gotchas, standards) — not the current work. The test for writing there: *would this still be true and useful in another project next year?* Give back what passes, stripped of the project, with the `kb-capture` skill; everything else (status, what was done, this project's systems and decisions) belongs in the session-notes file or the project's own instructions — never in a knowledge-base "overview". End the reply with a `KB:` line. Never record secrets, production or personal data, or anything your organization classifies as non-public.
 
 ## Skills
 

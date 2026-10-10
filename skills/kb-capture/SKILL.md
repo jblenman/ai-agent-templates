@@ -1,6 +1,6 @@
 ---
 name: kb-capture
-description: Save what this session learned into the knowledge base — a gotcha, a setup or build step, an environment fact, a tool quirk, a decision with its reason, a known issue — in the right file, in the house format, with the index updated; and for a shared knowledge base, on a branch with a pull request. Use at the end of any task that cost real time to figure out, or when the user says "remember this" / "add that to the KB".
+description: Save what this session learned into the knowledge base — general, reusable technical knowledge only (how a tool really behaves, a pattern that transfers, a language gotcha, a standard and its reason) in the right topic file, in the house format, with the index updated; for a shared knowledge base, on a branch with a pull request. Applies the test "still true and useful in another project next year?" and refuses project state. Use at the end of any task that cost real time, or when the user says "remember this" / "add that to the KB".
 argument-hint: "[what to capture]"
 ---
 
@@ -8,9 +8,17 @@ argument-hint: "[what to capture]"
 
 Capture: $ARGUMENTS
 
-If that is empty, go through this session and list what a later session would have wanted to know at the start. When the list is not obvious, confirm it with the user first.
+If that is empty, go through this session and list what a later session **on a different project** would want to know. Most of what a session learns is about the current work; that is for the session-notes file, not for here. Expect the list to be short.
 
-`<kb>` below is the knowledge base folder named in your instructions (the line next to the import of `KB.md`). Look for `<kb>/.git`: if it exists the knowledge base is a shared git repository (do every section); if not, it is one person's folder or lives inside the project repository (skip sections 1 and 5).
+`<kb>` below is the knowledge base folder named in your instructions (the line next to the import of `KB.md`). Look for `<kb>/.git`: if it exists the knowledge base is a shared git repository (do every section); if not, it is one person's folder (skip sections 1 and 5).
+
+## 0. The gate — apply it to every candidate before writing
+
+**Would this still be true, and useful to someone else, in another project six months from now?**
+
+- Yes, as written → capture it (section 2).
+- Yes, once the project is stripped out → rewrite it as a general fact first: no "we", "currently", "today", "this repo", "the migration", no system or team names. If nothing general remains, it was state.
+- No → it is **state or project context**. Put it where it belongs instead: current task, status, decisions made in this work → the session-notes file; this project's systems, environments, accounts, conventions, owners → the project's `AGENTS.md`/docs. **Do not create or update a knowledge-base file to reflect current work** — no "overview" of the project, no running status, no decision log.
 
 ## 1. Prepare (shared repository only)
 
@@ -22,32 +30,29 @@ If that is empty, go through this session and list what a later session would ha
 
 | What you learned | Where |
 |---|---|
-| Something that cost time: a build, environment, CLI, dependency or data quirk | `kb/dev/gotchas.md` (one entry per quirk: symptom, cause, fix) |
-| How to build, run, test or debug this codebase | `kb/dev/codebase.md` |
-| An address, account, role, subscription, region or environment rule | `kb/env/environments.md` |
-| A decision and its reasons (and the alternatives rejected) | `kb/decisions.md` — one dated entry, newest first |
-| How a tool or service actually behaves (not what its docs promise) | `kb/tools/<tool>.md` |
-| A defect or oddity that is intended | `kb/known-issues.md` |
-| A term, a system, a role: what it is | `kb/overview.md` |
+| How a tool or service actually behaves (not what its docs promise): a command that works or fails, a quirk, a version-specific change | `kb/tools/<tool>.md` |
+| An approach that solved a class of problem and transfers: when to use it, when not, what it cost or saved | `kb/patterns/<topic>.md` |
+| A language, framework or runtime gotcha: symptom → cause → fix | `kb/languages/<language>.md` |
+| A standard or convention and the reason behind it | the matching tool, pattern or language file |
 
-Extend an existing file first; create a file only for a new topic, and add it to `kb/index.md` with a one-line "read when" hint.
+Extend an existing file first (one file per tool, pattern or language); create a file only for a new topic, from the folder's `_TEMPLATE.md`, and add it to `kb/index.md` with a one-line "read when" hint in the words a person would use.
 
 ## 3. Format rules
 
-- Topic-based, not chronological: add to the matching section; do not append dated journal entries (decisions are the one dated file).
+- Topic-based, not chronological: add to the matching section; never append dated journal entries.
 - One fact per bullet; tables for comparisons; the exact command, error text, path or version — vague summaries lose their value.
-- State what was verified and when (`last_verified: 2026-10-05` in a file's front matter, or "(checked 2026-10-05)" on the line). Do not write what you have not verified; mark a guess as a guess or leave it out.
+- Say what was verified and when: `last_verified: <date>` in the file's front matter, or "(checked <date>, version <x>)" on the line. Do not write what you have not verified; mark a guess as a guess or leave it out.
 - Correct what you find wrong while you are there. Remove what is dead.
-- Write for a reader who was not in this session: no "as discussed", no session ids, no narrative.
+- Write for a reader who was not in this session and is not on this project.
 
 ## 4. Never write
 
-Passwords, tokens, keys, connection strings; real personal or production data; anything your organization classifies as non-public (internal system names, data, documents) when the knowledge base is not inside that boundary; screenshots or other evidence files; notes about one session's state (that is the session-notes file); anything unverified.
+Passwords, tokens, keys, connection strings; real personal or production data; anything your organization classifies as non-public (internal system names, data, documents) when the knowledge base lives outside that boundary; screenshots or other evidence files; one session's or one project's state; anything unverified.
 
 ## 5. Review and share (shared repository only)
 
-Re-read the diff as the next reader: does each entry say where, when, and how it was verified? Then `git -C "<kb>" add -A && git -C "<kb>" commit -m "kb: <topic>"`, push the branch, and open a pull request (or tell the user the branch name if you cannot). Never commit to `main` directly in a shared knowledge base.
+Re-read the diff as a reader on another project: does each entry stand on its own, say how and when it was verified, and name no project? Then `git -C "<kb>" add -A && git -C "<kb>" commit -m "kb: <topic>"`, push the branch, and open a pull request (or tell the user the branch name if you cannot). Never commit to `main` directly in a shared knowledge base.
 
 ## 6. Say what you did
 
-End the reply with one line: `KB: kb/dev/gotchas.md +1 (az --query returns [] for an unknown field)` or `KB: nothing new`. For a shared repository add the branch and whether it was pushed.
+End the reply with one line: `KB: kb/tools/azure-cli.md +1 (JMESPath strings are single-quoted)`, `KB: nothing new`, or `KB: nothing new — the findings were project state, written to the session notes`. For a shared repository add the branch and whether it was pushed.

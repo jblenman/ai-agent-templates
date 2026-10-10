@@ -229,7 +229,7 @@ Four sections were added in Oct 2026 after a real incident (a Luna-tier model ra
 
 - **Initiative** — OpenAI's own persistence pattern in plain words: bias toward action, persist to the intended goal, come back with a reviewable result, boundaries stated once.
 - **Evidence Rules (tool results)** — the rule the incident lacked: an empty result has four likelier causes than permission; bisect a filtered command back to its simplest form; read exit code and stderr; every environment claim quotes the command and the output line; three *different* attempts before a hand-back; verified vs inferred kept apart.
-- **Session Notes / Knowledge Base / Skills** — the practices from a multi-machine Claude Code setup, made tool-agnostic: a notes file a new session boots from (enforced by the hooks), a small knowledge base the agent reads first and gives back to, and reusable procedures as skills.
+- **Session Notes / Knowledge Base / Skills** — the practices from a multi-machine Claude Code setup, made tool-agnostic: a notes file a new session boots from (enforced by the hooks), a small knowledge base of *general, reusable* technical knowledge the agent reads first and gives back to (the test: still true and useful in another project next year — otherwise it is notes; an earlier starter blurred this and agents filled an "overview" with project state), and reusable procedures as skills.
 
 For GPT-5.1, `profiles/gpt-5.1/AGENTS.md` keeps the heavier reasoning coaching that model needs, plus the same four sections.
 

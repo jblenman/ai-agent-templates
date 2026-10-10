@@ -55,6 +55,10 @@ Ad-hoc work (a question answered, a small fix, a one-off task) records its state
 
 Split a project into a notes file of its own **only when both hold**: another session on this machine is updating the shared file in the same timeframe, **and** the work is an ongoing multi-session project with real state (a mission, decisions, open threads), not an afternoon's task. Then the shared file keeps a one-line index row pointing at the project file, bumped in the same turn as the project file.
 
+## Relation to the knowledge base
+
+The notes file is **state**: this work, now. The knowledge base is **knowledge**: what would still be true in another project next year. A decision about this project, the status of a migration, what the systems here are — notes (or the project's instructions). How a tool behaved, a pattern that transferred, a language gotcha — knowledge base, stripped of the project, through the `kb-capture` skill. When in doubt, it is notes; promoting a general fact to the knowledge base later is cheap, and a knowledge base full of project state is useless to the next project.
+
 ## Relation to the tool's own memory
 
 Codex's `[memories]` and Claude Code's auto-memory are summaries the tool makes for itself; this file is the explicit record the user reads and the next session resumes from. Keep both; they answer different questions.
